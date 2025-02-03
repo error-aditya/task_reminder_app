@@ -84,11 +84,11 @@ class _LoginScreenState extends State<LoginScreen>
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Login to Your Account',
+          'GoDo',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
-            color: Colors.white,
+            color: Colors.black,
           ),
         ),
         flexibleSpace: Container(
@@ -212,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen>
                               builder: (context) => RegisterUserScreen()),
                         ),
                         child: const Text(
-                          'Register User',
+                          "Don't have an account? Register Here",
                           style: TextStyle(
                               color: Colors.white, fontWeight: FontWeight.bold),
                         ),

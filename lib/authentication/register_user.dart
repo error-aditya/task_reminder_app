@@ -97,11 +97,11 @@ class _RegisterUserScreenState extends State<RegisterUserScreen>
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Create Your Account',
+          'GoDo',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
-            color: Colors.white,
+            color: Colors.black,
           ),
         ),
         flexibleSpace: Container(
