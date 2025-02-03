@@ -25,9 +25,8 @@ Future<void> main() async {
     Hive.registerAdapter(UserAdapter());
   }
   await Hive.openBox<Task>('taskk');
-  // await task.clear();
   await Hive.openBox<User>('users');
-  // printAllUsers();
+  printAllUsers();
   print('Hive box opened: ${Hive.isBoxOpen('taskk')}');
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
@@ -40,22 +39,22 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-// void printAllUsers() {
-//   final usersBox = Hive.box<User>('users');
+void printAllUsers() {
+  final usersBox = Hive.box<User>('users');
 
-//   print("Total Users: ${usersBox.length}");
+  print("Total Users: ${usersBox.length}");
 
-//   for (int i = 0; i < usersBox.length; i++) {
-//     User? user = usersBox.getAt(i);
+  for (int i = 0; i < usersBox.length; i++) {
+    User? user = usersBox.getAt(i);
 
-//     if (user != null) {
-//       print("User $i:");
-//       print("  UserName: ${user.username}");
-//       print("  Email: ${user.email}");
-//       // print("  Password: ${user.password}");
-//     }
-//   }
-// }
+    if (user != null) {
+      print("User $i:");
+      print("  UserName: ${user.username}");
+      print("  Email: ${user.email}");
+      // print("  Password: ${user.password}");
+    }
+  }
+}
 
 
 class _MyAppState extends State<MyApp> {
@@ -65,7 +64,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: isLoggedIn ? ToDoPage() : RegisterUserScreen(),
+      home: isLoggedIn ? const ToDoPage() : RegisterUserScreen(),
     );
   }
 }

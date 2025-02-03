@@ -1,31 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:newtodo/authentication/auth_input_validation.dart';
-// import 'package:newtodo/authentication/auth_service.dart';
 import 'package:newtodo/authentication/register_user.dart';
 import 'package:newtodo/model/user.dart';
 import 'package:newtodo/screens/todopage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _passwordVisiblityHide = true;
+  bool _passwordVisibilityHide = true;
   bool _isEmailValid = true;
-  // ignore: unused_field
   bool _isPasswordValid = true;
   bool _isLoading = false;
+  late AnimationController _controller;
+  late Animation<double> _fadeInAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..forward();
+    _fadeInAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+  }
+
+  @override
+  void dispose() {
+    if (_controller != null) {
+      _controller.dispose();
+    }
+    super.dispose();
+  }
 
   void _login() async {
     if (_formKey.currentState?.validate() ?? false) {
-      final usersBox = Hive.box<User>('users');
+      setState(() => _isLoading = true);
+      await Future.delayed(const Duration(seconds: 1));
 
+      final usersBox = Hive.box<User>('users');
       final user = usersBox.values.firstWhere(
         (user) =>
             user.email == _emailController.text.trim() &&
@@ -33,9 +56,11 @@ class _LoginScreenState extends State<LoginScreen> {
         orElse: () => User(username: '', email: '', password: ''),
       );
 
+      setState(() => _isLoading = false);
+
       if (user.username.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid credentials!')),
+          const SnackBar(content: Text('Invalid credentials!')),
         );
         return;
       }
@@ -46,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => ToDoPage()),
+        MaterialPageRoute(builder: (context) => const ToDoPage()),
       );
     }
   }
@@ -55,157 +80,149 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Login',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
+        title: const Text(
+          'Login to Your Account',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueAccent, Colors.purpleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: TextStyle(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey[800]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.purple),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.red),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.red),
-                      ),
-                      suffixIcon: _isEmailValid
-                          ? null
-                          : Icon(Icons.error_outline_outlined),
-                    ),
-                    validator: (email) {
-                      String? message =
-                          AuthInputValidationMixin.isEmailValid(email);
-                      if (message == null) {
-                        setState(() {
-                          _isEmailValid = true;
-                        });
-                        return null;
-                      } else {
-                        setState(() {
-                          _isEmailValid = false;
-                        });
-                        return message;
-                      }
-                    },
-                  ),
-                  SizedBox(
-                    height: 10,
-                  ),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _passwordVisiblityHide,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      labelStyle: TextStyle(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey[800]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.purple),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.red),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.red),
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _passwordVisiblityHide
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: _passwordVisiblityHide
-                              ? Colors.grey[650]
-                              : Colors.blue,
+      body: FadeTransition(
+        opacity: _fadeInAnimation,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueAccent, Colors.purpleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelStyle: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                          labelText: 'Email',
+                          filled: true,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _passwordVisiblityHide = !_passwordVisiblityHide;
-                          });
+                        validator: (email) {
+                          String? message =
+                              AuthInputValidationMixin.isEmailValid(email);
+                          setState(() => _isEmailValid = message == null);
+                          return message;
                         },
                       ),
-                    ),
-                    validator: (password) {
-                      String? message =
-                          AuthInputValidationMixin.isPasswordValid(password);
-                      if (message == null) {
-                        setState(() {
-                          _isPasswordValid = true;
-                        });
-                        return null;
-                      } else {
-                        setState(() {
-                          _isPasswordValid = false;
-                        });
-                        return message;
-                      }
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.blue.shade300,
-                      disabledForegroundColor: Colors.white,
-                      shadowColor: Colors.blue,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        side: _isLoading
-                            ? BorderSide(
-                                color: Colors.blue.shade300,
-                                width: 2,
-                              )
-                            : BorderSide(
-                                color: Colors.blueAccent,
-                                width: 2,
-                              ),
-                        borderRadius: BorderRadius.circular(10),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _passwordVisibilityHide,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          filled: true,
+                          labelStyle: TextStyle(
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.bold),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _passwordVisibilityHide
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () => setState(() =>
+                                _passwordVisibilityHide =
+                                    !_passwordVisibilityHide),
+                          ),
+                        ),
+                        validator: (password) {
+                          String? message =
+                              AuthInputValidationMixin.isPasswordValid(
+                                  password);
+                          setState(() => _isPasswordValid = message == null);
+                          return message;
+                        },
                       ),
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 60, vertical: 15),
-                      textStyle: TextStyle(fontSize: 18),
-                    ),
-                    child: Text('Login'),
+                      const SizedBox(height: 20),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: _isLoading
+                            ? 50
+                            : MediaQuery.of(context).size.width * 0.8,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _login,
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : const Text("Login"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.blue.shade300,
+                            disabledForegroundColor: Colors.white,
+                            shadowColor: Colors.blue,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              side: _isLoading
+                                  ? BorderSide(
+                                      color: Colors.blue.shade300,
+                                      width: 2,
+                                    )
+                                  : const BorderSide(
+                                      color: Colors.blueAccent,
+                                      width: 2,
+                                    ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 60, vertical: 15),
+                            textStyle: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => RegisterUserScreen()),
+                        ),
+                        child: const Text(
+                          'Register User',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 10),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => RegisterUserScreen()));
-                      },
-                      child: Text('Register User')),
-                ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
