@@ -176,10 +176,6 @@ class _LoginScreenState extends State<LoginScreen>
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _login,
-                          child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
-                              : const Text("Login"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -203,6 +199,10 @@ class _LoginScreenState extends State<LoginScreen>
                                 horizontal: 60, vertical: 15),
                             textStyle: const TextStyle(fontSize: 18),
                           ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : const Text("Login"),
                         ),
                       ),
                       TextButton(

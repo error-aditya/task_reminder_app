@@ -25,6 +25,15 @@ class Task {
   @HiveField(6)
   String userId;
 
+  @HiveField(7)
+  double? latitude;
+
+  @HiveField(8)
+  double? longitude;
+
+  @HiveField(9)
+  double? radius;
+
   Task({
     required this.title,
     required this.description,
@@ -33,6 +42,9 @@ class Task {
     required this.date,
     required this.alertDate,
     required this.userId,
+    this.latitude,
+    this.longitude,
+    this.radius,
   });
 
   void save() {
@@ -60,6 +72,18 @@ class Task {
     alertDate = value;
   }
 
+  set setLatitude(double? value) {
+    latitude = value;
+  }
+
+  set setLongitude(double? value) {
+    longitude = value;
+  }
+
+  set setRadius(double? value) {
+    radius = value;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'title': title,
@@ -68,6 +92,10 @@ class Task {
       'status': status,
       'date': date,
       'alertDate': alertDate,
+      'userId': userId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'radius': radius,
     };
   }
 }

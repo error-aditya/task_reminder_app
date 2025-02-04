@@ -24,13 +24,16 @@ class TaskAdapter extends TypeAdapter<Task> {
       date: fields[4] as DateTime,
       alertDate: fields[5] as DateTime,
       userId: fields[6] as String,
+      latitude: fields[7] as double?,
+      longitude: fields[8] as double?,
+      radius: fields[9] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Task obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -44,7 +47,13 @@ class TaskAdapter extends TypeAdapter<Task> {
       ..writeByte(5)
       ..write(obj.alertDate)
       ..writeByte(6)
-      ..write(obj.userId);
+      ..write(obj.userId)
+      ..writeByte(7)
+      ..write(obj.latitude)
+      ..writeByte(8)
+      ..write(obj.longitude)
+      ..writeByte(9)
+      ..write(obj.radius);
   }
 
   @override

@@ -9,13 +9,24 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
-
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:label="newtodo"
         android:name="${applicationName}"
         android:icon="@mipmap/godo"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyC8FDJxIrHvz2os4LAB7TKfk52IX_fgbjI"/>
+        <meta-data
+            android:name="com.google.android.maps.Logging"
+            android:value="false"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

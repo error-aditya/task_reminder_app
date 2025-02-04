@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:newtodo/authentication/login.dart';
+import 'package:newtodo/features/location_picker.dart' as location_picker;
 import 'package:newtodo/notificationn.dart';
 import 'package:newtodo/screens/search_screen.dart';
 import 'package:newtodo/settings.dart';
@@ -211,6 +213,10 @@ class _ToDoPageState extends State<ToDoPage> {
     TimeOfDay selectedTime = TimeOfDay.now();
     bool notifyUser = true;
 
+    final TextEditingController _latitudeController = TextEditingController();
+    final TextEditingController _longitudeController = TextEditingController();
+    final TextEditingController _radiusController = TextEditingController();
+
     void _pickDate() async {
       DateTime? pickedDate = await showDatePicker(
         context: context,
@@ -303,6 +309,32 @@ class _ToDoPageState extends State<ToDoPage> {
                         });
                       },
                     ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        LatLng? pickedLocation = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  location_picker.LocationPickerScreen(onLocationPicked: (selectedLocation) {})),
+                        );
+
+                        if (pickedLocation != null) {
+                          setState(() {
+                            _latitudeController.text =
+                                pickedLocation.latitude.toString();
+                            _longitudeController.text =
+                                pickedLocation.longitude.toString();
+                          });
+                        }
+                      },
+                      child: const Text("Pick Location"),
+                    ),
+                    TextField(
+                      controller: _radiusController,
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          const InputDecoration(labelText: 'Radius (meters)'),
+                    ),
                   ],
                 ),
               ),
@@ -330,12 +362,19 @@ class _ToDoPageState extends State<ToDoPage> {
                     if (notifyUser) {
                       NotificationService().initNotification();
                       NotificationService().scheduleNotification(
-                          title: _titleController.text,
-                          body: _descriptionController.text,
-                          scheduleDate: finalDateTime,
-                          AndroidScheduleMode: null);
+                        title: _titleController.text,
+                        body: _descriptionController.text,
+                        scheduleDate: finalDateTime,
+                        AndroidScheduleMode: null,
+                      );
                       NotificationService().requestExactAlarmPermission();
                     }
+
+                    double? latitude =
+                        double.tryParse(_latitudeController.text);
+                    double? longitude =
+                        double.tryParse(_longitudeController.text);
+                    double? radius = double.tryParse(_radiusController.text);
 
                     final newTask = Task(
                       title: _titleController.text,
@@ -345,6 +384,9 @@ class _ToDoPageState extends State<ToDoPage> {
                       date: DateTime.now(),
                       alertDate: finalDateTime,
                       userId: currentUserid,
+                      latitude: latitude,
+                      longitude: longitude,
+                      radius: radius,
                     );
 
                     var taskBox = await Hive.openBox<Task>(userBoxName);
@@ -359,6 +401,9 @@ class _ToDoPageState extends State<ToDoPage> {
                     _titleController.clear();
                     _descriptionController.clear();
                     _priority = 'Medium';
+                    _latitudeController.clear();
+                    _longitudeController.clear();
+                    _radiusController.clear();
 
                     Navigator.of(context).pop();
 
