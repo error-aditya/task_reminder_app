@@ -26,7 +26,7 @@ class TaskAdapter extends TypeAdapter<Task> {
       userId: fields[6] as String,
       latitude: fields[7] as double?,
       longitude: fields[8] as double?,
-      radius: fields[9] as double?,
+      radius: fields[9] as double?, locationAddress: '',
     );
   }
 

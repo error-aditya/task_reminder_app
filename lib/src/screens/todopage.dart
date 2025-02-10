@@ -1,5 +1,8 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +14,7 @@ import 'package:newtodo/src/screens/search_screen.dart';
 import 'package:newtodo/src/screens/settings.dart';
 import 'package:newtodo/model/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class ToDoPage extends StatefulWidget {
@@ -50,7 +54,7 @@ class _ToDoPageState extends State<ToDoPage> {
         },
         style: ElevatedButton.styleFrom(
             backgroundColor: selectedFilter == filterType
-                ? const Color.fromARGB(255, 47, 171, 229)
+                ? Colors.blueAccent
                 : Colors.white),
         child: Text(filterType),
       ),
@@ -208,37 +212,40 @@ class _ToDoPageState extends State<ToDoPage> {
     _titleController.clear();
     _descriptionController.clear();
 
-    DateTime selectedDate = DateTime.now();
-    TimeOfDay selectedTime = TimeOfDay.now();
+    DateTime selectedDateTime = DateTime.now();
     bool notifyUser = true;
+    bool isLocationSelected = false; // Track if location is selected
 
     final TextEditingController _latitudeController = TextEditingController();
     final TextEditingController _longitudeController = TextEditingController();
     final TextEditingController _radiusController = TextEditingController();
+    final TextEditingController _locationController = TextEditingController();
 
-    void _pickDate() async {
+    Future<void> _pickDateTime() async {
       DateTime? pickedDate = await showDatePicker(
         context: context,
-        initialDate: selectedDate,
+        initialDate: selectedDateTime,
         firstDate: DateTime(2000),
         lastDate: DateTime(2101),
       );
-      if (pickedDate != null) {
-        setState(() {
-          selectedDate = pickedDate;
-        });
-      }
-    }
 
-    void _pickTime() async {
-      TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
-        initialTime: selectedTime,
-      );
-      if (pickedTime != null) {
-        setState(() {
-          selectedTime = pickedTime;
-        });
+      if (pickedDate != null) {
+        TimeOfDay? pickedTime = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+        );
+
+        if (pickedTime != null) {
+          setState(() {
+            selectedDateTime = DateTime(
+              pickedDate.year,
+              pickedDate.month,
+              pickedDate.day,
+              pickedTime.hour,
+              pickedTime.minute,
+            );
+          });
+        }
       }
     }
 
@@ -247,6 +254,7 @@ class _ToDoPageState extends State<ToDoPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            bool isLocationSelected = false;
             return AlertDialog(
               title: const Text('Add New Task'),
               content: SingleChildScrollView(
@@ -278,27 +286,13 @@ class _ToDoPageState extends State<ToDoPage> {
                       },
                     ),
                     const SizedBox(height: 10),
-                    // Date Picker Button
                     ListTile(
                       title: Text(
-                          "Select Date: ${DateFormat('yyyy-MM-dd').format(selectedDate)}"),
+                          "Select Date: ${DateFormat('yyyy-MM-dd').format(selectedDateTime)}"),
                       leading: const Icon(Icons.calendar_today),
-                      onTap: _pickDate,
-                    ),
-                    // Time Picker Button
-                    ListTile(
-                      title:
-                          Text("Select Time: ${selectedTime.format(context)}"),
-                      leading: const Icon(Icons.access_time),
-                      onTap: _pickTime,
+                      onTap: _pickDateTime,
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'You Will Be Notified \nAt "${DateFormat('yyyy-MM-dd HH:mm').format(DateTime(selectedDate.year, selectedDate.month, selectedDate.day, selectedTime.hour, selectedTime.minute))}"',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    // Notification toggle
                     SwitchListTile(
                       title: const Text('Notification For Task :'),
                       value: notifyUser,
@@ -308,30 +302,59 @@ class _ToDoPageState extends State<ToDoPage> {
                         });
                       },
                     ),
-                    ElevatedButton(
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.location_on, color: Colors.grey),
+                      label: const Text("Pick Location"),
                       onPressed: () async {
-                        LatLng? pickedLocation = await Get.to<LatLng?>(
-                          () => location_picker.LocationPickerScreen(
-                            onLocationPicked: (selectedLocation) {
-                              Get.back(result: selectedLocation);
-                            },
-                          ),
+                        bool? shouldPickLocation = await Get.defaultDialog(
+                          title: "Add Location?",
+                          middleText:
+                              "Do you want to add a location for this task?",
+                          textConfirm: "Yes",
+                          textCancel: "No",
+                          confirmTextColor: Colors.white,
+                          onConfirm: () {
+                            Get.back(result: true);
+                          },
+                          onCancel: () {
+                            Get.back(result: false);
+                          },
                         );
 
-                        if (pickedLocation != null) {
-                          _latitudeController.text =
-                              pickedLocation.latitude.toString();
-                          _longitudeController.text =
-                              pickedLocation.longitude.toString();
+                        if (shouldPickLocation == true) {
+                          String? pickedAddress = await Get.to<String?>(
+                            () => location_picker.LocationPickerScreen(
+                              onLocationPicked: (selectedAddress) {
+                                setState(() {
+                                  _locationController.text =
+                                      selectedAddress; // Store Address Instead
+                                  isLocationSelected =
+                                      true; // Update state properly
+                                });
+                              },
+                            ),
+                          );
+
+                          if (pickedAddress != null) {
+                            setState(() {
+                              _locationController.text =
+                                  pickedAddress; // Store Address
+                              isLocationSelected = true;
+                            });
+                          }
                         }
                       },
-                      child: const Text("Pick Location"),
                     ),
                     TextField(
-                      controller: _radiusController,
-                      keyboardType: TextInputType.number,
-                      decoration:
-                          const InputDecoration(labelText: 'Radius (meters)'),
+                      controller: _locationController,
+                      keyboardType: TextInputType.text,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'Selected Location',
+                        prefixIcon: isLocationSelected
+                            ? const Icon(Icons.location_on, color: Colors.red)
+                            : const Icon(Icons.location_on, color: Colors.grey),
+                      ),
                     ),
                   ],
                 ),
@@ -350,11 +373,11 @@ class _ToDoPageState extends State<ToDoPage> {
                     String userBoxName = 'task_${currentUserid}';
 
                     DateTime finalDateTime = DateTime(
-                      selectedDate.year,
-                      selectedDate.month,
-                      selectedDate.day,
-                      selectedTime.hour,
-                      selectedTime.minute,
+                      selectedDateTime.year,
+                      selectedDateTime.month,
+                      selectedDateTime.day,
+                      selectedDateTime.hour,
+                      selectedDateTime.minute,
                     );
 
                     if (notifyUser) {
@@ -385,6 +408,8 @@ class _ToDoPageState extends State<ToDoPage> {
                       latitude: latitude,
                       longitude: longitude,
                       radius: radius,
+                      locationAddress:
+                          _locationController.text, // Save Location
                     );
 
                     var taskBox = await Hive.openBox<Task>(userBoxName);
@@ -449,7 +474,6 @@ class _ToDoPageState extends State<ToDoPage> {
               _buildFilterTile('Pending', LucideIcons.clock),
               _buildFilterTile('Upcoming', LucideIcons.calendarClock),
               _buildFilterTile('Overdue', LucideIcons.alertTriangle),
-              _buildFilterTile('Select Date', LucideIcons.calendarRange),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
@@ -473,13 +497,9 @@ class _ToDoPageState extends State<ToDoPage> {
       leading: Icon(icon, color: Colors.blueAccent),
       title: Text(title, style: const TextStyle(fontSize: 16)),
       onTap: () {
-        if (title == 'Select Date') {
-            _selectDate(context);
-          } else {
-            setState(() {
-              selectedFilter = title;
-            });
-          }
+        setState(() {
+          selectedFilter = title;
+        });
         Navigator.pop(context);
       },
     );
@@ -504,7 +524,7 @@ class _ToDoPageState extends State<ToDoPage> {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color.fromARGB(255, 36, 138, 186),
+        selectedItemColor: Colors.blueAccent,
         currentIndex: 0,
         onTap: (value) {
           selectedIndex = value;
@@ -524,16 +544,29 @@ class _ToDoPageState extends State<ToDoPage> {
         ],
       ),
       drawer: Drawer(
-        surfaceTintColor: Colors.lightBlue,
+        surfaceTintColor: Colors.blueAccent,
         // backgroundColor: Colors.black,
         child: ListView(children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 36, 138, 186),
-                border: Border.all(color: Colors.lightBlue, width: 0)),
-            child: const Text(
-              'Tasks',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            decoration: const BoxDecoration(
+                gradient: LinearGradient(
+              colors: [Color(0xFF24C6DC), Color(0xFF514A9D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )),
+            child: Center(
+              child: Shimmer.fromColors(
+                baseColor: Colors.white,
+                highlightColor: Colors.blue[200]!,
+                child: Text(
+                  'GoDo',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
             ),
           ),
           ListTile(
@@ -548,26 +581,41 @@ class _ToDoPageState extends State<ToDoPage> {
         ]),
       ),
       appBar: AppBar(
-        title: const Text(
-          'Tasks',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF24C6DC), Color(0xFF514A9D)], // Cool Gradient
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
         ),
-        backgroundColor: const Color.fromARGB(255, 36, 138, 186),
+        title: Shimmer.fromColors(
+          baseColor: Colors.white,
+          highlightColor: Colors.blue[200]!,
+          child: Text(
+            'GoDo',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.search, size: 26),
+            splashRadius: 22,
             onPressed: () {
               showSearch(
                 context: context,
                 delegate: SearchScreen(tasks: _tasks),
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list_alt),
-            onPressed: () => _showFilterOptions(),
           ),
         ],
       ),
@@ -583,6 +631,14 @@ class _ToDoPageState extends State<ToDoPage> {
               children: [
                 _buildFilterButton('All'),
                 _buildFilterButton('Today'),
+                _buildFilterButton('Select Date'),
+                const SizedBox(
+                  width: 25,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.filter_list_alt),
+                  onPressed: () => _showFilterOptions(),
+                ),
               ],
             ),
           ),
@@ -660,13 +716,10 @@ class _ToDoPageState extends State<ToDoPage> {
                               ),
                             ],
                           ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              // Show confirmation dialog before deleting
-                              _showDeleteConfirmationDialog(index);
-                            },
-                          ),
+                          trailing:
+                              task.latitude != null && task.longitude != null
+                                  ? Icon(Icons.location_on, color: Colors.red)
+                                  : null,
                         ),
                       ),
                     );
@@ -697,33 +750,6 @@ class _ToDoPageState extends State<ToDoPage> {
       default:
         return Colors.black;
     }
-  }
-
-  void _showDeleteConfirmationDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Delete Task"),
-          content: const Text("Are you sure you want to delete this task?"),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _deleteTask(_tasks.indexOf(_tasks[index]));
-                Navigator.of(context).pop();
-              },
-              child: const Text("Delete"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showEditTaskDialog(int index) {
@@ -850,6 +876,7 @@ class _ToDoPageState extends State<ToDoPage> {
                       date: task.date,
                       alertDate: selectedDate!,
                       userId: task.userId,
+                      locationAddress: '',
                     );
                     await taskk!.putAt(index, updatedTask);
                     _loadTasks();

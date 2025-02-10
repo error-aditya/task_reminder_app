@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationPickerScreen extends StatefulWidget {
-  final Function(LatLng) onLocationPicked; // Callback to send the location back
+  final Function(String) onLocationPicked; // Callback to send the location back
 
   LocationPickerScreen({required this.onLocationPicked});
 
@@ -18,6 +19,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late GoogleMapController mapController;
   LatLng? selectedLocation;
   Position? currentPosition;
+  String? selectedAddress;
 
   @override
   void initState() {
@@ -25,6 +27,43 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _initializeNotifications();
     _getUserLocation();
     _startLocationListener();
+    _requestLocationPermission();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    PermissionStatus status = await Permission.location.request();
+
+    if (status.isGranted) {
+      _getUserLocation();
+    } else if (status.isDenied) {
+      _showPermissionDialog();
+    } else if (status.isPermanentlyDenied) {
+      openAppSettings();
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location Permission Required!'),
+        content: const Text('This app needs location permission!'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startLocationListener() {
@@ -55,6 +94,28 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     });
   }
 
+  Future<void> _getAddressFromCoordinates(LatLng location) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        location.latitude,
+        location.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        setState(() {
+          selectedAddress =
+              "${place.name}, ${place.locality}, ${place.country}";
+        });
+      }
+    } catch (e) {
+      print("Error fetching address: $e");
+      setState(() {
+        selectedAddress = "Unknown location";
+      });
+    }
+  }
+
   // Initialize local notifications
   void _initializeNotifications() {
     flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -65,16 +126,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Future<void> _getUserLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print("Location service enabled!.");
+      return;
+    }
     PermissionStatus permissionStatus =
         await Permission.locationAlways.request();
 
     if (permissionStatus.isGranted || permissionStatus.isLimited) {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print("Location services are disabled.");
-        return;
-      }
-
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       setState(() {
@@ -89,27 +149,27 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void _onMapTapped(LatLng location) {
     setState(() {
       selectedLocation = location;
+      selectedAddress = "Fetching address...";
     });
+
+    // Fetch address from coordinates
+    _getAddressFromCoordinates(location);
+
     // Move the camera to the selected location
     mapController.animateCamera(CameraUpdate.newLatLng(location));
   }
 
   // Action when the user confirms the selected location
   void _confirmLocation() {
-    if (selectedLocation != null) {
-      // Send the selected location back to the previous screen
-      widget.onLocationPicked(selectedLocation!);
-      // Optionally, show a notification after location is selected
-      _sendNotification(
-          "Location Confirmed: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}");
+    if (selectedAddress != null && selectedLocation != null) {
+      widget.onLocationPicked(selectedAddress!);
+      _sendNotification("Location Confirmed: $selectedAddress");
       Navigator.pop(context);
     } else {
-      // Show a message if no location was selected
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a location first.'),
           duration: Duration(seconds: 2),
-          
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -142,30 +202,32 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       body: Column(
         children: [
           Expanded(
-            child: GoogleMap(
-              onMapCreated: (GoogleMapController controller) {
-                mapController = controller;
-              },
-              initialCameraPosition: CameraPosition(
-                target: currentPosition != null
-                    ? LatLng(
-                        currentPosition!.latitude, currentPosition!.longitude)
-                    : const LatLng(
-                        37.7749, -122.4194), // Default to San Francisco
-                zoom: 12,
-              ),
-              onTap: _onMapTapped, // Handle map tap
-              markers: selectedLocation != null
-                  ? {
-                      Marker(
-                        markerId: const MarkerId('selectedLocation'),
-                        position: selectedLocation!,
-                        infoWindow:
-                            const InfoWindow(title: 'Selected Location'),
-                      )
-                    }
-                  : {},
-            ),
+            child: currentPosition == null
+                ? const Center(child: CircularProgressIndicator())
+                : GoogleMap(
+                    onMapCreated: (GoogleMapController controller) {
+                      mapController = controller;
+                    },
+                    initialCameraPosition: CameraPosition(
+                      target: currentPosition != null
+                          ? LatLng(currentPosition!.latitude,
+                              currentPosition!.longitude)
+                          : const LatLng(
+                              37.7749, -122.4194), // Default to San Francisco
+                      zoom: 12,
+                    ),
+                    onTap: _onMapTapped, // Handle map tap
+                    markers: selectedLocation != null
+                        ? {
+                            Marker(
+                              markerId: const MarkerId('selectedLocation'),
+                              position: selectedLocation!,
+                              infoWindow:
+                                  const InfoWindow(title: 'Selected Location'),
+                            )
+                          }
+                        : {},
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:newtodo/src/screens/login/login.dart';
 import 'package:newtodo/src/features/notificationn.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key});
@@ -68,13 +70,31 @@ class _SettingsState extends State<Settings> {
     return Scaffold(
       // backgroundColor: _isDarkTheme ? Colors.black : Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 36, 138, 186),
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF24C6DC), Color(0xFF514A9D)], // Cool Gradient
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
+        title: Shimmer.fromColors(
+          baseColor: Colors.white,
+          highlightColor: Colors.blue[200]!,
+          child: Text(
+            '',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -82,8 +102,7 @@ class _SettingsState extends State<Settings> {
           SwitchListTile(
             title: const Text(
               'Enable Notifications For Tasks',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             value: _notificationsEnabled,
             onChanged: (bool value) {
@@ -140,7 +159,7 @@ class _SettingsState extends State<Settings> {
           ListTile(
             title: const Text(
               "Log Out",
-              style: TextStyle(color: Colors.red,fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
             onTap: _logout,
           ),

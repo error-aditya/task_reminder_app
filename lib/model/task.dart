@@ -44,7 +44,7 @@ class Task {
     required this.userId,
     this.latitude,
     this.longitude,
-    this.radius,
+    this.radius, required String locationAddress,
   });
 
   void save() {

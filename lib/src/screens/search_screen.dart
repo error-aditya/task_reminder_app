@@ -6,12 +6,12 @@ class SearchScreen extends SearchDelegate {
 
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
-      case 'high':
+      case 'Must':
         return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
+      case 'Medium':
         return Colors.green;
+      case 'low':
+        return Colors.blue;
       default:
         return Colors.grey;
     }

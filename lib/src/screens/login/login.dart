@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:newtodo/src/auth_validation/auth_input_validation.dart';
 import 'package:newtodo/src/screens/registration/register_user.dart';
 import 'package:newtodo/model/user.dart';
 import 'package:newtodo/src/screens/todopage.dart';
+import 'package:shimmer/shimmer.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -82,31 +84,36 @@ class _LoginScreenState extends State<LoginScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'GoDo',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-            color: Colors.black,
-          ),
-        ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent, Colors.purpleAccent],
+              colors: [Color(0xFF24C6DC), Color(0xFF514A9D)], // Cool Gradient
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
+        title: Shimmer.fromColors(
+          baseColor: Colors.white,
+          highlightColor: Colors.blue[200]!,
+          child: Text(
+            'GoDo',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        centerTitle: true,
       ),
       body: FadeTransition(
         opacity: _fadeInAnimation,
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent, Colors.purpleAccent],
+              colors: [Color(0xFF24C6DC), Color(0xFF514A9D)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
