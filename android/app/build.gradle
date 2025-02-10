@@ -1,8 +1,8 @@
-
-apply plugin: "com.android.application"
-apply plugin: "kotlin-android"
-apply plugin: "dev.flutter.flutter-gradle-plugin"
-
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
@@ -23,8 +23,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.newtodo"
-    // namespace 'com.example.android_intent_plus'
+    namespace 'com.example.newtodo'
 
     compileSdk 34
     ndkVersion flutter.ndkVersion
@@ -56,12 +55,9 @@ android {
         versionName flutterVersionName
     }
 
-
-    android {
     lintOptions {
          checkReleaseBuilds false
          lintConfig file("lint.xml")
-    }
     }
 
     buildTypes {

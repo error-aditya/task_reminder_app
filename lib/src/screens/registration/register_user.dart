@@ -1,79 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:newtodo/authentication/auth_input_validation.dart';
-import 'package:newtodo/authentication/register_user.dart';
+import 'package:newtodo/src/auth_validation/auth_input_validation.dart';
+import 'package:newtodo/src/screens/login/login.dart';
 import 'package:newtodo/model/user.dart';
-import 'package:newtodo/screens/todopage.dart';
 
-class LoginScreen extends StatefulWidget {
+class RegisterUserScreen extends StatefulWidget {
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _RegisterUserScreenState createState() => _RegisterUserScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _RegisterUserScreenState extends State<RegisterUserScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _passwordVisibilityHide = true;
-  bool _isEmailValid = true;
-  bool _isPasswordValid = true;
+  final _confirmPasswordController = TextEditingController();
+  bool _passwordVisiblityHide = true;
   bool _isLoading = false;
-  late AnimationController _controller;
+
+  late AnimationController _animationController;
   late Animation<double> _fadeInAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..forward();
-    _fadeInAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
+    _fadeInAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    _animationController.forward();
   }
 
-  @override
-  void dispose() {
-    if (_controller != null) {
-      _controller.dispose();
-    }
-    super.dispose();
-  }
-
-  void _login() async {
+  void _registerUser() async {
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 1));
+      setState(() {
+        _isLoading = true; // Show loading indicator
+      });
 
       final usersBox = Hive.box<User>('users');
-      final user = usersBox.values.firstWhere(
-        (user) =>
-            user.email == _emailController.text.trim() &&
-            user.password == _passwordController.text.trim(),
-        orElse: () => User(username: '', email: '', password: ''),
+      final existingUser = usersBox.values.any(
+        (user) => user.email == _emailController.text.trim(),
       );
 
-      setState(() => _isLoading = false);
-
-      if (user.username.isEmpty) {
+      if (existingUser) {
+        setState(() {
+          _isLoading = false; // Hide loading indicator
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid credentials!')),
+          const SnackBar(content: Text('User already exists!')),
         );
         return;
       }
 
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('loggedInUserEmail', user.email);
+      final newUser = User(
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      await usersBox.add(newUser);
+
+      setState(() {
+        _isLoading = false; // Hide loading indicator
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User Registered Successfully!')),
+      );
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ToDoPage()),
+        MaterialPageRoute(builder: (context) => LoginScreen()),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -121,53 +134,100 @@ class _LoginScreenState extends State<LoginScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Username Field
                       TextFormField(
-                        controller: _emailController,
+                        controller: _usernameController,
                         decoration: InputDecoration(
+                          labelText: 'Username',
+                          filled: true,
                           labelStyle: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
                           ),
-                          labelText: 'Email',
-                          filled: true,
                         ),
-                        validator: (email) {
+                        validator: (username) {
                           String? message =
-                              AuthInputValidationMixin.isEmailValid(email);
-                          setState(() => _isEmailValid = message == null);
+                              AuthInputValidationMixin.isUsernameValid(
+                                  username);
                           return message;
                         },
                       ),
                       const SizedBox(height: 10),
+                      // Email Field
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          filled: true,
+                          labelStyle: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        validator: (email) {
+                          String? message =
+                              AuthInputValidationMixin.isEmailValid(email);
+                          return message;
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      // Password Field
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: _passwordVisibilityHide,
                         decoration: InputDecoration(
                           labelText: 'Password',
                           filled: true,
                           labelStyle: TextStyle(
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.bold),
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _passwordVisibilityHide
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                              _passwordVisiblityHide
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: _passwordVisiblityHide
+                                  ? Colors.grey[650]
+                                  : Colors.blue,
                             ),
-                            onPressed: () => setState(() =>
-                                _passwordVisibilityHide =
-                                    !_passwordVisibilityHide),
+                            onPressed: () {
+                              setState(() {
+                                _passwordVisiblityHide =
+                                    !_passwordVisiblityHide;
+                              });
+                            },
                           ),
                         ),
                         validator: (password) {
                           String? message =
                               AuthInputValidationMixin.isPasswordValid(
                                   password);
-                          setState(() => _isPasswordValid = message == null);
                           return message;
                         },
+                        obscureText: _passwordVisiblityHide,
+                      ),
+                      const SizedBox(height: 10),
+                      // Confirm Password Field
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password',
+                          filled: true,
+                          labelStyle: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        validator: (confirmPassword) {
+                          String? message =
+                              AuthInputValidationMixin.isConfirmPasswordValid(
+                                  confirmPassword, _passwordController.text);
+                          return message;
+                        },
+                        obscureText: _passwordVisiblityHide,
                       ),
                       const SizedBox(height: 20),
+                      // Register Button
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: _isLoading
@@ -175,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen>
                             : MediaQuery.of(context).size.width * 0.8,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
+                          onPressed: _isLoading ? null : _registerUser,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -201,18 +261,23 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           child: _isLoading
                               ? const CircularProgressIndicator(
-                                  color: Colors.white)
-                              : const Text("Login"),
+                                  color: Colors.white,
+                                )
+                              : const Text('Register'),
                         ),
                       ),
+                      const SizedBox(height: 10),
+
+                      // Navigate to Login
                       TextButton(
-                        onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => RegisterUserScreen()),
-                        ),
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => LoginScreen()));
+                        },
                         child: const Text(
-                          "Don't have an account? Register Here",
+                          'Already have an account? Login',
                           style: TextStyle(
                               color: Colors.white, fontWeight: FontWeight.bold),
                         ),

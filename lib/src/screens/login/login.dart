@@ -1,92 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:newtodo/authentication/auth_input_validation.dart';
-import 'package:newtodo/authentication/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:newtodo/src/auth_validation/auth_input_validation.dart';
+import 'package:newtodo/src/screens/registration/register_user.dart';
 import 'package:newtodo/model/user.dart';
+import 'package:newtodo/src/screens/todopage.dart';
 
-class RegisterUserScreen extends StatefulWidget {
+class LoginScreen extends StatefulWidget {
   @override
-  _RegisterUserScreenState createState() => _RegisterUserScreenState();
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _RegisterUserScreenState extends State<RegisterUserScreen>
+class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  bool _passwordVisiblityHide = true;
+  bool _passwordVisibilityHide = true;
+  bool _isEmailValid = true;
+  bool _isPasswordValid = true;
   bool _isLoading = false;
-
-  late AnimationController _animationController;
+  late AnimationController _controller;
   late Animation<double> _fadeInAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    );
+    )..forward();
     _fadeInAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
-    _animationController.forward();
-  }
-
-  void _registerUser() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true; // Show loading indicator
-      });
-
-      final usersBox = Hive.box<User>('users');
-      final existingUser = usersBox.values.any(
-        (user) => user.email == _emailController.text.trim(),
-      );
-
-      if (existingUser) {
-        setState(() {
-          _isLoading = false; // Hide loading indicator
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User already exists!')),
-        );
-        return;
-      }
-
-      final newUser = User(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      await usersBox.add(newUser);
-
-      setState(() {
-        _isLoading = false; // Hide loading indicator
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User Registered Successfully!')),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
-    }
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _animationController.dispose();
+    if (_controller != null) {
+      _controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _login() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isLoading = true);
+      await Future.delayed(const Duration(seconds: 1));
+
+      final usersBox = Hive.box<User>('users');
+      final user = usersBox.values.firstWhere(
+        (user) =>
+            user.email == _emailController.text.trim() &&
+            user.password == _passwordController.text.trim(),
+        orElse: () => User(username: '', email: '', password: ''),
+      );
+
+      setState(() => _isLoading = false);
+
+      if (user.username.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid credentials!')),
+        );
+        return;
+      }
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('loggedInUserEmail', user.email);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ToDoPage()),
+      );
+    }
   }
 
   @override
@@ -134,100 +121,53 @@ class _RegisterUserScreenState extends State<RegisterUserScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Username Field
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          labelText: 'Username',
-                          filled: true,
-                          labelStyle: TextStyle(
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        validator: (username) {
-                          String? message =
-                              AuthInputValidationMixin.isUsernameValid(
-                                  username);
-                          return message;
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      // Email Field
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
-                          labelText: 'Email',
-                          filled: true,
                           labelStyle: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
                           ),
+                          labelText: 'Email',
+                          filled: true,
                         ),
                         validator: (email) {
                           String? message =
                               AuthInputValidationMixin.isEmailValid(email);
+                          setState(() => _isEmailValid = message == null);
                           return message;
                         },
                       ),
                       const SizedBox(height: 10),
-                      // Password Field
                       TextFormField(
                         controller: _passwordController,
+                        obscureText: _passwordVisibilityHide,
                         decoration: InputDecoration(
                           labelText: 'Password',
                           filled: true,
                           labelStyle: TextStyle(
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.bold),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _passwordVisiblityHide
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: _passwordVisiblityHide
-                                  ? Colors.grey[650]
-                                  : Colors.blue,
+                              _passwordVisibilityHide
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _passwordVisiblityHide =
-                                    !_passwordVisiblityHide;
-                              });
-                            },
+                            onPressed: () => setState(() =>
+                                _passwordVisibilityHide =
+                                    !_passwordVisibilityHide),
                           ),
                         ),
                         validator: (password) {
                           String? message =
                               AuthInputValidationMixin.isPasswordValid(
                                   password);
+                          setState(() => _isPasswordValid = message == null);
                           return message;
                         },
-                        obscureText: _passwordVisiblityHide,
-                      ),
-                      const SizedBox(height: 10),
-                      // Confirm Password Field
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password',
-                          filled: true,
-                          labelStyle: TextStyle(
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        validator: (confirmPassword) {
-                          String? message =
-                              AuthInputValidationMixin.isConfirmPasswordValid(
-                                  confirmPassword, _passwordController.text);
-                          return message;
-                        },
-                        obscureText: _passwordVisiblityHide,
                       ),
                       const SizedBox(height: 20),
-                      // Register Button
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: _isLoading
@@ -235,7 +175,7 @@ class _RegisterUserScreenState extends State<RegisterUserScreen>
                             : MediaQuery.of(context).size.width * 0.8,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _registerUser,
+                          onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -261,23 +201,18 @@ class _RegisterUserScreenState extends State<RegisterUserScreen>
                           ),
                           child: _isLoading
                               ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text('Register'),
+                                  color: Colors.white)
+                              : const Text("Login"),
                         ),
                       ),
-                      const SizedBox(height: 10),
-
-                      // Navigate to Login
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => LoginScreen()));
-                        },
+                        onPressed: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => RegisterUserScreen()),
+                        ),
                         child: const Text(
-                          'Already have an account? Login',
+                          "Don't have an account? Register Here",
                           style: TextStyle(
                               color: Colors.white, fontWeight: FontWeight.bold),
                         ),

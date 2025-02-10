@@ -24,6 +24,35 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     super.initState();
     _initializeNotifications();
     _getUserLocation();
+    _startLocationListener();
+  }
+
+  void _startLocationListener() {
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Check location every 10 meters
+      ),
+    ).listen((Position position) {
+      setState(() {
+        currentPosition = position;
+      });
+
+      // Check if user is within radius of selected location
+      if (selectedLocation != null) {
+        double distance = Geolocator.distanceBetween(
+          position.latitude,
+          position.longitude,
+          selectedLocation!.latitude,
+          selectedLocation!.longitude,
+        );
+
+        if (distance <= 100) {
+          // 100 meters radius
+          _sendNotification("You have a task at this location.");
+        }
+      }
+    });
   }
 
   // Initialize local notifications
@@ -35,11 +64,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  // Request location permissions and get user's current location
   Future<void> _getUserLocation() async {
-    PermissionStatus permissionStatus = await Permission.location.request();
+    PermissionStatus permissionStatus =
+        await Permission.locationAlways.request();
 
-    if (permissionStatus.isGranted) {
+    if (permissionStatus.isGranted || permissionStatus.isLimited) {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         print("Location services are disabled.");
@@ -71,28 +100,33 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       // Send the selected location back to the previous screen
       widget.onLocationPicked(selectedLocation!);
       // Optionally, show a notification after location is selected
-      _sendNotification("Location Confirmed: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}");
+      _sendNotification(
+          "Location Confirmed: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}");
       Navigator.pop(context);
     } else {
       // Show a message if no location was selected
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select a location first.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a location first.'),
+          duration: Duration(seconds: 2),
+          
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10.0)),
+          ),
+        ),
+      );
     }
   }
 
   // Show a local notification
   Future<void> _sendNotification(String message) async {
     var androidDetails = const AndroidNotificationDetails(
-      'location_channel_id',
-      'Location Reminders',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: 'godo'
-    );
+        'location_channel_id', 'Location Reminders',
+        importance: Importance.high, priority: Priority.high, icon: 'godo');
 
     var notificationDetails = NotificationDetails(android: androidDetails);
-
     await flutterLocalNotificationsPlugin.show(
       0,
       'Location Reminder',
@@ -114,8 +148,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               },
               initialCameraPosition: CameraPosition(
                 target: currentPosition != null
-                    ? LatLng(currentPosition!.latitude, currentPosition!.longitude)
-                    : const LatLng(37.7749, -122.4194), // Default to San Francisco
+                    ? LatLng(
+                        currentPosition!.latitude, currentPosition!.longitude)
+                    : const LatLng(
+                        37.7749, -122.4194), // Default to San Francisco
                 zoom: 12,
               ),
               onTap: _onMapTapped, // Handle map tap
@@ -124,7 +160,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       Marker(
                         markerId: const MarkerId('selectedLocation'),
                         position: selectedLocation!,
-                        infoWindow: const InfoWindow(title: 'Selected Location'),
+                        infoWindow:
+                            const InfoWindow(title: 'Selected Location'),
                       )
                     }
                   : {},

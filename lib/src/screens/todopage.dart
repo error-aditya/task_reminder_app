@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:newtodo/authentication/login.dart';
-import 'package:newtodo/features/location_picker.dart' as location_picker;
-import 'package:newtodo/notificationn.dart';
-import 'package:newtodo/screens/search_screen.dart';
-import 'package:newtodo/settings.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:newtodo/src/screens/login/login.dart';
+import 'package:newtodo/src/features/location_picker.dart' as location_picker;
+import 'package:newtodo/src/features/notificationn.dart';
+import 'package:newtodo/src/screens/search_screen.dart';
+import 'package:newtodo/src/screens/settings.dart';
 import 'package:newtodo/model/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -196,10 +198,7 @@ class _ToDoPageState extends State<ToDoPage> {
     currentUserid = prefs.getString('loggedInUserEmail') ?? '';
 
     if (currentUserid.isEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
+      Get.off(LoginScreen());
     } else {
       _loadTasks();
     }
@@ -311,20 +310,19 @@ class _ToDoPageState extends State<ToDoPage> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        LatLng? pickedLocation = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  location_picker.LocationPickerScreen(onLocationPicked: (selectedLocation) {})),
+                        LatLng? pickedLocation = await Get.to<LatLng?>(
+                          () => location_picker.LocationPickerScreen(
+                            onLocationPicked: (selectedLocation) {
+                              Get.back(result: selectedLocation);
+                            },
+                          ),
                         );
 
                         if (pickedLocation != null) {
-                          setState(() {
-                            _latitudeController.text =
-                                pickedLocation.latitude.toString();
-                            _longitudeController.text =
-                                pickedLocation.longitude.toString();
-                          });
+                          _latitudeController.text =
+                              pickedLocation.latitude.toString();
+                          _longitudeController.text =
+                              pickedLocation.longitude.toString();
                         }
                       },
                       child: const Text("Pick Location"),
@@ -406,22 +404,14 @@ class _ToDoPageState extends State<ToDoPage> {
                     _radiusController.clear();
 
                     Navigator.of(context).pop();
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.fixed,
-                        duration: Duration(seconds: 4),
-                        elevation: 5,
-                        content: Text(
-                          "Congratulations, You Have Successfully Created a Task!",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                    Get.snackbar(
+                      "Congratulations",
+                      "Task Added Successfully",
+                      backgroundColor: Colors.green,
+                      snackPosition: SnackPosition.BOTTOM,
+                      colorText: Colors.white,
+                      reverseAnimationCurve: Curves.bounceIn,
+                      duration: const Duration(seconds: 3),
                     );
                   },
                   child: const Text('Add Task'),
@@ -430,6 +420,67 @@ class _ToDoPageState extends State<ToDoPage> {
             );
           },
         );
+      },
+    );
+  }
+
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Filter Tasks',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildFilterTile('Today', LucideIcons.calendar),
+              _buildFilterTile('Completed', LucideIcons.checkCircle),
+              _buildFilterTile('Pending', LucideIcons.clock),
+              _buildFilterTile('Upcoming', LucideIcons.calendarClock),
+              _buildFilterTile('Overdue', LucideIcons.alertTriangle),
+              _buildFilterTile('Select Date', LucideIcons.calendarRange),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterTile(String title, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.blueAccent),
+      title: Text(title, style: const TextStyle(fontSize: 16)),
+      onTap: () {
+        if (title == 'Select Date') {
+            _selectDate(context);
+          } else {
+            setState(() {
+              selectedFilter = title;
+            });
+          }
+        Navigator.pop(context);
       },
     );
   }
@@ -451,18 +502,14 @@ class _ToDoPageState extends State<ToDoPage> {
       );
     }
     return Scaffold(
-      backgroundColor: Colors.black,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
         selectedItemColor: const Color.fromARGB(255, 36, 138, 186),
-        unselectedItemColor: Colors.white,
         currentIndex: 0,
         onTap: (value) {
           selectedIndex = value;
           if (value == 1) {
-            Navigator.push(
-                context, MaterialPageRoute(builder: (context) => Settings()));
+            Get.to(const Settings());
           }
         },
         items: const [
@@ -477,25 +524,24 @@ class _ToDoPageState extends State<ToDoPage> {
         ],
       ),
       drawer: Drawer(
-        // shadowColor: Colors.lightBlue,
         surfaceTintColor: Colors.lightBlue,
-
-        backgroundColor: Colors.black,
+        // backgroundColor: Colors.black,
         child: ListView(children: [
           DrawerHeader(
             decoration: BoxDecoration(
                 color: const Color.fromARGB(255, 36, 138, 186),
                 border: Border.all(color: Colors.lightBlue, width: 0)),
-            child: Text(
+            child: const Text(
               'Tasks',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           ListTile(
-            title: Text(
+            title: const Text(
               'Profile',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             onTap: () {},
           ),
@@ -519,11 +565,15 @@ class _ToDoPageState extends State<ToDoPage> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.filter_list_alt),
+            onPressed: () => _showFilterOptions(),
+          ),
         ],
       ),
       body: Column(
         children: [
-          Padding(
+          const Padding(
             padding: EdgeInsets.symmetric(vertical: 3),
           ),
           SizedBox(
@@ -533,11 +583,6 @@ class _ToDoPageState extends State<ToDoPage> {
               children: [
                 _buildFilterButton('All'),
                 _buildFilterButton('Today'),
-                _buildFilterButton('Completed'),
-                _buildFilterButton('Pending'),
-                _buildFilterButton('Upcoming'),
-                _buildFilterButton('Overdue'),
-                _buildFilterButton('Select Date'),
               ],
             ),
           ),
@@ -797,7 +842,6 @@ class _ToDoPageState extends State<ToDoPage> {
                       );
                       NotificationService().requestExactAlarmPermission();
                     }
-
                     final updatedTask = Task(
                       title: _titleController.text,
                       description: _descriptionController.text,
@@ -810,10 +854,10 @@ class _ToDoPageState extends State<ToDoPage> {
                     await taskk!.putAt(index, updatedTask);
                     _loadTasks();
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Task updated successfully!'),
-                      ),
+                    Get.snackbar(
+                      'Success',
+                      'Task updated successfully!',
+                      backgroundColor: Colors.green,
                     );
                   },
                   child: const Text(

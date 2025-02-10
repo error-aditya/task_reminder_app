@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:newtodo/authentication/login.dart';
-import 'package:newtodo/notificationn.dart';
+import 'package:get/get.dart';
+import 'package:newtodo/src/screens/login/login.dart';
+import 'package:newtodo/src/features/notificationn.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Settings extends StatefulWidget {
@@ -65,7 +66,7 @@ class _SettingsState extends State<Settings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _isDarkTheme ? Colors.black : Colors.white,
+      // backgroundColor: _isDarkTheme ? Colors.black : Colors.white,
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 36, 138, 186),
         title: const Text(
@@ -82,7 +83,7 @@ class _SettingsState extends State<Settings> {
             title: const Text(
               'Enable Notifications For Tasks',
               style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  TextStyle(fontWeight: FontWeight.bold),
             ),
             value: _notificationsEnabled,
             onChanged: (bool value) {
@@ -92,51 +93,54 @@ class _SettingsState extends State<Settings> {
               _notificationsEnabled
                   ? 'Notifications Are On'
                   : 'Notifications Are Off',
-              style: TextStyle(color: Colors.white),
             ),
           ),
           ListTile(
-            title: Text(
+            title: const Text(
               "Account Settings",
-              style: TextStyle(color: Colors.white),
             ),
             onTap: () {},
           ),
-          SwitchListTile(
-              title: const Text(
-                'Dark Theme',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              value: _isDarkTheme,
-              onChanged: (bool value) {
-                toggleTheme(value);
-              }),
           ListTile(
-            title: Text(
+            leading: Icon(Icons.light_mode),
+            title: Text('Light Theme'),
+            onTap: () {
+              Get.changeTheme(ThemeData.light());
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode),
+            title: Text('Dark Theme'),
+            onTap: () {
+              Get.changeTheme(ThemeData.dark());
+            },
+          ),
+          ListTile(
+            title: const Text(
               "Task Settings",
-              style: TextStyle(color: Colors.white),
             ),
             onTap: () {},
           ),
-          ListTile(
-            title: Text(
-              "Backup and Restore",
-              style: TextStyle(color: Colors.white),
-            ),
-            onTap: () {},
+          Column(
+            children: [
+              ListTile(
+                title: const Text(
+                  "Backup and Restore",
+                ),
+                onTap: () {},
+              ),
+            ],
           ),
           ListTile(
-            title: Text(
+            title: const Text(
               "Help & Support",
-              style: TextStyle(color: Colors.white),
             ),
             onTap: () {},
           ),
           ListTile(
-            title: Text(
+            title: const Text(
               "Log Out",
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Colors.red,fontWeight: FontWeight.bold),
             ),
             onTap: _logout,
           ),
