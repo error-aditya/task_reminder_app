@@ -1,0 +1,27 @@
+-> Task Addition
+-> Task Edit/Delete
+-> Notification on Alert Time
+-> Filter Tasks - Today/Completed/Pending/Upcoming/Overdue/Selected Date
+-> Notification Selection 
+-> Task Priority Selection - Must/Medium/Low
+-> BackgroundTheme dark/light
+-> Login/SignUp
+-> Used HiveBox "taskk" for tasks details storage
+-> Used HIveBox "users" for login and sign up details storage
+-> Enable/Disable Notification for each task and for whole system
+-> Working on a feature : You will get notification on your location
+
+
+-> Used google maps api for fetching longitude and latitude 
+-> created task model for storing string,datetime and double values in Hive database
+-> Used Getx state management for managing state
+-> Used Future<> function for working on future activites
+-> Used List for manupulating with data
+
+
+10-2-25
+-> Updated UI of login,signup,settings,todopage
+-> Add location icon to get details about the selected location
+-> Removed the delete icon
+-> Add filter section to buildfiltertile
+-> Add lucide icons for filtertile buttons
