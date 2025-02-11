@@ -12,7 +12,7 @@ class NotificationService {
   Future<void> initNotification() async {
     tz.initializeTimeZones();
     AndroidInitializationSettings initializationSettingsAndroid =
-        const AndroidInitializationSettings('godo');
+        const AndroidInitializationSettings('@drawable/godo');
 
     var initializationSettingsIOS = const DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -53,14 +53,14 @@ class NotificationService {
   notificationDetails() {
     return const NotificationDetails(
         android: AndroidNotificationDetails('channelId', 'channelName',
-            importance: Importance.max, icon: 'godo'),
+            importance: Importance.max, icon: '@drawable/godo'),
         iOS: DarwinNotificationDetails());
   }
 
   // Show notification if enabled
   Future<void> showNotification({
     int id = 0,
-    String? title = 'ToDoApp',
+    String? title = 'GoDo',
     String? body =
         'Congratulations! You Have Set The Task.\nBest of Luck For Your Task.',
     String? payLoad,
@@ -95,7 +95,7 @@ class NotificationService {
               priority: Priority.high,
               playSound: true,
               enableVibration: true,
-              icon: 'godo');
+              icon: '@drawable/godo');
 
       const NotificationDetails platformChannelSpecifics = NotificationDetails(
         android: androidPlatformChannelSpecifics,

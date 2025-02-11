@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -102,7 +100,7 @@ class _ToDoPageState extends State<ToDoPage> {
         case 'Upcoming':
           return !task.status && task.alertDate.isAfter(now);
         case 'Overdue':
-          return !task.status && task.alertDate.isBefore(now);
+          return !task.status && task.alertDate.isBefore(DateTime.now());
         case 'Select Date':
           if (filterDate != null) {
             return isSameDay(task.alertDate, filterDate!);
@@ -175,25 +173,32 @@ class _ToDoPageState extends State<ToDoPage> {
 
   void _deleteTask(int index) async {
     if (index >= 0 && index < _tasks.length) {
-      await taskk!.deleteAt(index);
+      final Task tappedTask = _filteredTasks()[index];
+      final int actualIndex =
+          _tasks.indexOf(tappedTask); // Get actual index in Hive box
 
-      setState(() {
-        _loadTasks();
-      });
+      if (actualIndex != -1) {
+        await taskk!.deleteAt(actualIndex); // Delete from Hive
+
+        _loadTasks(); // Reload tasks properly
+        setState(() {}); // Refresh UI
+      }
     } else {
-      debugPrint('Error At index: $index');
+      debugPrint('Error at index: $index');
     }
   }
 
   void _toggleTaskStatus(int index) async {
-    // Get the task from the box
-    final task = taskk!.getAt(index);
-    if (task != null) {
+    final filteredTasks = _filteredTasks();
+    if (index < filteredTasks.length) {
+      final task = filteredTasks[index];
       task.status = !task.status;
 
       await taskk!.putAt(index, task);
 
-      setState(() {});
+      setState(() {
+        _loadTasks();
+      });
     }
   }
 
@@ -213,8 +218,7 @@ class _ToDoPageState extends State<ToDoPage> {
     _descriptionController.clear();
 
     DateTime selectedDateTime = DateTime.now();
-    bool notifyUser = true;
-    bool isLocationSelected = false; // Track if location is selected
+    bool notifyUser = false;
 
     final TextEditingController _latitudeController = TextEditingController();
     final TextEditingController _longitudeController = TextEditingController();
@@ -256,23 +260,41 @@ class _ToDoPageState extends State<ToDoPage> {
           builder: (context, setState) {
             bool isLocationSelected = false;
             return AlertDialog(
-              title: const Text('Add New Task'),
+              title: const Text(
+                'Add New Task',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: _titleController,
-                      decoration: const InputDecoration(labelText: 'Title'),
+                      decoration: InputDecoration(
+                        labelText: 'Title',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _descriptionController,
-                      decoration:
-                          const InputDecoration(labelText: 'Description'),
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _priority,
-                      decoration: const InputDecoration(labelText: 'Priority'),
+                      decoration: InputDecoration(
+                          labelText: 'Priority',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          )),
                       items: const [
                         DropdownMenuItem(value: 'Must', child: Text('Must')),
                         DropdownMenuItem(
@@ -285,76 +307,142 @@ class _ToDoPageState extends State<ToDoPage> {
                         });
                       },
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     ListTile(
-                      title: Text(
-                          "Select Date: ${DateFormat('yyyy-MM-dd').format(selectedDateTime)}"),
-                      leading: const Icon(Icons.calendar_today),
-                      onTap: _pickDateTime,
+                      leading: const Icon(
+                        Icons.notifications_active_rounded,
+                        color: Colors.blue,
+                      ),
+                      title: const Text("Alert Time:"),
+                      subtitle: Text(DateFormat('yyyy-MM-dd HH:mm')
+                          .format(selectedDateTime)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.calendar_today_rounded),
+                        onPressed: () => _pickDateTime(),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     SwitchListTile(
                       title: const Text('Notification For Task :'),
+                      activeColor: const Color(0xFF24C6DC),
                       value: notifyUser,
                       onChanged: (bool value) {
                         setState(() {
                           notifyUser = value;
-                        });
-                      },
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.location_on, color: Colors.grey),
-                      label: const Text("Pick Location"),
-                      onPressed: () async {
-                        bool? shouldPickLocation = await Get.defaultDialog(
-                          title: "Add Location?",
-                          middleText:
-                              "Do you want to add a location for this task?",
-                          textConfirm: "Yes",
-                          textCancel: "No",
-                          confirmTextColor: Colors.white,
-                          onConfirm: () {
-                            Get.back(result: true);
-                          },
-                          onCancel: () {
-                            Get.back(result: false);
-                          },
-                        );
-
-                        if (shouldPickLocation == true) {
-                          String? pickedAddress = await Get.to<String?>(
-                            () => location_picker.LocationPickerScreen(
-                              onLocationPicked: (selectedAddress) {
-                                setState(() {
-                                  _locationController.text =
-                                      selectedAddress; // Store Address Instead
-                                  isLocationSelected =
-                                      true; // Update state properly
-                                });
-                              },
-                            ),
-                          );
-
-                          if (pickedAddress != null) {
-                            setState(() {
-                              _locationController.text =
-                                  pickedAddress; // Store Address
-                              isLocationSelected = true;
-                            });
+                          if (notifyUser == true) {
+                            const Icon(Icons.notifications_active_rounded);
+                          } else {
+                            const Icon(Icons.notifications_off_rounded);
                           }
-                        }
+                        });
                       },
                     ),
                     TextField(
                       controller: _locationController,
                       keyboardType: TextInputType.text,
-                      readOnly: true,
+                      // readOnly: true,
                       decoration: InputDecoration(
-                        labelText: 'Selected Location',
-                        prefixIcon: isLocationSelected
-                            ? const Icon(Icons.location_on, color: Colors.red)
-                            : const Icon(Icons.location_on, color: Colors.grey),
-                      ),
+                          labelText: 'Selected Location',
+                          prefixIcon: IconButton(
+                            onPressed: () async {
+                              bool? shouldPickLocation =
+                                  await Get.defaultDialog(
+                                title: "Add Location?",
+                                titleStyle: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF24C6DC),
+                                ),
+                                middleText:
+                                    "Do you want to add a location for this task?",
+                                middleTextStyle: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[700],
+                                ),
+                                backgroundColor: Colors.white,
+                                radius: 15,
+                                content: Column(
+                                  children: [
+                                    const Icon(Icons.location_on,
+                                        size: 60, color: Colors.blueAccent),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      "Adding a location can help you get reminders based on your place.",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  ],
+                                ),
+                                barrierDismissible:
+                                    false, // Prevents accidental dismissals
+                                confirm: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Get.back(result: true);
+                                  },
+                                  icon: const Icon(Icons.check_circle,
+                                      color: Colors.white),
+                                  label: const Text("Yes"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                cancel: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Get.back(result: false);
+                                  },
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.blueAccent),
+                                  label: const Text("No"),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: Colors.blueAccent),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              );
+
+                              if (shouldPickLocation!) {
+                                String? pickedAddress = await Get.to<String?>(
+                                  () => location_picker.LocationPickerScreen(
+                                    onLocationPicked:
+                                        (String address, LatLng location) {
+                                      setState(() {
+                                        _locationController.text = address;
+                                        isLocationSelected = true;
+                                      });
+                                    },
+                                  ),
+                                );
+
+                                if (pickedAddress != null) {
+                                  setState(() {
+                                    _locationController.text =
+                                        pickedAddress; // Store Address
+                                    isLocationSelected = true;
+                                  });
+                                }
+                              }
+
+                              // Display Address only if shouldPickLocation is true
+                              if (shouldPickLocation && isLocationSelected) {
+                                Text(
+                                  _locationController.text,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.location_on,
+                                color: Color(0xFF24C6DC)),
+                          )),
                     ),
                   ],
                 ),
@@ -408,8 +496,7 @@ class _ToDoPageState extends State<ToDoPage> {
                       latitude: latitude,
                       longitude: longitude,
                       radius: radius,
-                      locationAddress:
-                          _locationController.text, // Save Location
+                      address: _locationController.text, // Save Location
                     );
 
                     var taskBox = await Hive.openBox<Task>(userBoxName);
@@ -444,6 +531,43 @@ class _ToDoPageState extends State<ToDoPage> {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Delete Task?"),
+          content: const Text("Are you sure you want to delete this task?"),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text("Cancel", style: TextStyle(color: Colors.blue)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                _deleteTask(index);
+                Navigator.of(context).pop(); // Close the dialog after deleting
+              },
+              child: const Text("Delete"),
+            ),
+          ],
         );
       },
     );
@@ -500,6 +624,7 @@ class _ToDoPageState extends State<ToDoPage> {
         setState(() {
           selectedFilter = title;
         });
+        _loadTasks();
         Navigator.pop(context);
       },
     );
@@ -524,7 +649,7 @@ class _ToDoPageState extends State<ToDoPage> {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: const Color(0xFF24C6DC),
         currentIndex: 0,
         onTap: (value) {
           selectedIndex = value;
@@ -636,7 +761,10 @@ class _ToDoPageState extends State<ToDoPage> {
                   width: 25,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.filter_list_alt),
+                  icon: const Icon(
+                    Icons.filter_list_alt,
+                    color: Color(0xFF24C6DC),
+                  ),
                   onPressed: () => _showFilterOptions(),
                 ),
               ],
@@ -648,78 +776,137 @@ class _ToDoPageState extends State<ToDoPage> {
               builder: (context, Box<Task> box, _) {
                 final tasks = _filteredTasks();
                 return ListView.builder(
-                  itemCount: tasks.length,
+                  itemCount: _filteredTasks().length,
                   itemBuilder: (context, index) {
-                    final task = tasks[index];
+                    final task = _filteredTasks()[index];
                     return Padding(
                       padding: const EdgeInsets.all(10.0),
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 15, vertical: 10),
-                        child: ListTile(
-                          leading: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            transitionBuilder:
-                                (Widget child, Animation<double> animation) {
-                              return ScaleTransition(
-                                scale: animation,
-                                child: child,
-                              );
-                            },
-                            child: IconButton(
-                              key: ValueKey<bool>(task.status),
-                              icon: Icon(
-                                task.status
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color: task.status ? Colors.green : Colors.grey,
-                              ),
-                              onPressed: () => _toggleTaskStatus(index),
-                            ),
-                          ),
-                          title: GestureDetector(
-                            onTap: () => _showEditTaskDialog(index),
-                            child: Text(
-                              task.title,
-                              style: TextStyle(
-                                decoration: task.status
-                                    ? TextDecoration.lineThrough
-                                    : null,
+                      child: GestureDetector(
+                        onLongPress: () {
+                          _showDeleteConfirmationDialog(context, index); // Call _showDeleteConfirmationDialog with tas(index);
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 10),
+                          child: ListTile(
+                            leading: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              transitionBuilder:
+                                  (Widget child, Animation<double> animation) {
+                                return ScaleTransition(
+                                  scale: animation,
+                                  child: child,
+                                );
+                              },
+                              child: IconButton(
+                                key: ValueKey<bool>(task.status),
+                                icon: Icon(
+                                  task.status
+                                      ? Icons.check_circle
+                                      : Icons.radio_button_unchecked,
+                                  color:
+                                      task.status ? Colors.green : Colors.grey,
+                                ),
+                                onPressed: () => _toggleTaskStatus(index),
                               ),
                             ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GestureDetector(
-                                onTap: () => _showEditTaskDialog(index),
-                                child: Text(task.description),
+                            title: GestureDetector(
+                              onTap: () {
+                                final Task tappedTask =
+                                    tasks[index]; // Get task from filtered list
+                                final int actualIndex = _tasks
+                                    .indexOf(tappedTask); // Find original index
+
+                                if (actualIndex != -1) {
+                                  // Ensure task exists in _tasks
+                                  _showEditTaskDialog(actualIndex);
+                                }
+                              },
+                              child: Text(
+                                task.title,
+                                style: TextStyle(
+                                  decoration: task.status
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              GestureDetector(
-                                onTap: () => _showEditTaskDialog(index),
-                                child: Text(
-                                  'Priority: ${task.priority}',
-                                  style: TextStyle(
-                                    color: _getPriorityColor(task.priority),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    final Task tappedTask = tasks[
+                                        index]; // Get task from filtered list
+                                    final int actualIndex = _tasks.indexOf(
+                                        tappedTask); // Find original index
+
+                                    if (actualIndex != -1) {
+                                      // Ensure task exists in _tasks
+                                      _showEditTaskDialog(actualIndex);
+                                    }
+                                  },
+                                  child: Text(task.description),
+                                ),
+                                const SizedBox(height: 4),
+                                GestureDetector(
+                                  onTap: () {
+                                    final Task tappedTask = tasks[
+                                        index]; // Get task from filtered list
+                                    final int actualIndex = _tasks.indexOf(
+                                        tappedTask); // Find original index
+
+                                    if (actualIndex != -1) {
+                                      // Ensure task exists in _tasks
+                                      _showEditTaskDialog(actualIndex);
+                                    }
+                                  },
+                                  child: Text(
+                                    'Priority: ${task.priority}',
+                                    style: TextStyle(
+                                      color: _getPriorityColor(task.priority),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              GestureDetector(
-                                onTap: () => _showEditTaskDialog(index),
-                                child: Text(
-                                  'Alert Date: ${DateFormat('yyyy-MM-dd HH:mm').format(task.alertDate)}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
+                                const SizedBox(height: 4),
+                                GestureDetector(
+                                  onTap: () {
+                                    final Task tappedTask = tasks[
+                                        index]; // Get task from filtered list
+                                    final int actualIndex = _tasks.indexOf(
+                                        tappedTask); // Find original index
+
+                                    if (actualIndex != -1) {
+                                      // Ensure task exists in _tasks
+                                      _showEditTaskDialog(actualIndex);
+                                    }
+                                  },
+                                  child: Text(
+                                    'Alert Date: ${DateFormat('yyyy-MM-dd HH:mm').format(task.alertDate)}',
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            trailing: (task.address != null &&
+                                    task.address!.isNotEmpty)
+                                ? IconButton(
+                                    icon: const Icon(Icons.location_on,
+                                        color: Color(0xFF24C6DC)),
+                                    onPressed: () {
+                                      Get.snackbar(
+                                        "Task Location",
+                                        task.address,
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: Colors.blueAccent,
+                                        colorText: Colors.white,
+                                        duration: const Duration(seconds: 5),
+                                      );
+                                    },
+                                  )
+                                : null,
                           ),
-                          trailing:
-                              task.latitude != null && task.longitude != null
-                                  ? Icon(Icons.location_on, color: Colors.red)
-                                  : null,
                         ),
                       ),
                     );
@@ -731,7 +918,8 @@ class _ToDoPageState extends State<ToDoPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTaskDialog,
+        onPressed:
+            _showAddTaskDialog, //showTaskDialog(context), //_showAddTaskDialog,
         child: const Icon(Icons.add),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -760,29 +948,49 @@ class _ToDoPageState extends State<ToDoPage> {
     DateTime? selectedDate = task.alertDate;
     bool notify = true;
 
+    final TextEditingController _locationController =
+        TextEditingController(text: task.address ?? '');
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Edit Task'),
+              title: const Text('Edit Task',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: _titleController,
-                      decoration: const InputDecoration(labelText: 'Title'),
+                      decoration: InputDecoration(
+                        labelText: 'Title',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _descriptionController,
-                      decoration:
-                          const InputDecoration(labelText: 'Description'),
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _priority,
-                      decoration: const InputDecoration(labelText: 'Priority'),
+                      decoration: InputDecoration(
+                        labelText: 'Priority',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'Must', child: Text('Must')),
                         DropdownMenuItem(
@@ -795,67 +1003,94 @@ class _ToDoPageState extends State<ToDoPage> {
                         });
                       },
                     ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
-                          TimeOfDay? pickedTime = await showTimePicker(
+                    const SizedBox(height: 12),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.notifications_active_rounded,
+                        color: Colors.blue,
+                      ),
+                      title: const Text("Alert Time:"),
+                      subtitle: Text(
+                        selectedDate != null
+                            ? DateFormat('yyyy-MM-dd HH:mm')
+                                .format(selectedDate!)
+                            : 'Select a date and time',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.calendar_today_rounded),
+                        onPressed: () async {
+                          DateTime? pickedDate = await showDatePicker(
                             context: context,
-                            initialTime: TimeOfDay.fromDateTime(
-                                selectedDate ?? DateTime.now()),
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2101),
                           );
-                          if (pickedTime != null) {
-                            setDialogState(() {
-                              selectedDate = DateTime(
-                                pickedDate.year,
-                                pickedDate.month,
-                                pickedDate.day,
-                                pickedTime.hour,
-                                pickedTime.minute,
-                              );
-                            });
+                          if (pickedDate != null) {
+                            TimeOfDay? pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(
+                                  selectedDate ?? DateTime.now()),
+                            );
+                            if (pickedTime != null) {
+                              setDialogState(() {
+                                selectedDate = DateTime(
+                                  pickedDate.year,
+                                  pickedDate.month,
+                                  pickedDate.day,
+                                  pickedTime.hour,
+                                  pickedTime.minute,
+                                );
+                              });
+                            }
                           }
-                        }
-                      },
-                      child: const Text(
-                        'Select Alert Date',
-                        style: TextStyle(color: Colors.black),
+                        },
                       ),
                     ),
-                    if (selectedDate != null)
-                      Text(
-                        'Selected Date: ${DateFormat('yyyy-MM-dd HH:mm').format(selectedDate!)}',
-                      ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Text('Notification For Task: '),
-                        Switch(
-                          value: notify,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              notify = value;
-                            });
+                    SwitchListTile(
+                      title: const Text('Notification For Task:'),
+                      activeColor: const Color(0xFF24C6DC),
+                      value: notify,
+                      onChanged: (bool value) {
+                        setDialogState(() {
+                          notify = value;
+                        });
+                      },
+                    ),
+                    TextField(
+                      controller: _locationController,
+                      decoration: InputDecoration(
+                        labelText: 'Selected Location',
+                        prefixIcon: IconButton(
+                          icon: const Icon(Icons.location_on,
+                              color: Color(0xFF24C6DC)),
+                          onPressed: () async {
+                            String? pickedAddress = await Get.to<String?>(
+                              () => location_picker.LocationPickerScreen(
+                                onLocationPicked:
+                                    (String address, LatLng location) {
+                                  setDialogState(() {
+                                    _locationController.text = address;
+                                  });
+                                },
+                              ),
+                            );
+                            if (pickedAddress != null) {
+                              setDialogState(() {
+                                _locationController.text = pickedAddress;
+                              });
+                            }
                           },
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(color: Colors.black),
-                    )),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
                 ElevatedButton(
                   onPressed: () async {
                     if (notify) {
@@ -876,21 +1111,15 @@ class _ToDoPageState extends State<ToDoPage> {
                       date: task.date,
                       alertDate: selectedDate!,
                       userId: task.userId,
-                      locationAddress: '',
+                      address: _locationController.text,
                     );
-                    await taskk!.putAt(index, updatedTask);
+                    await taskk!.putAt(_tasks.indexOf(task), updatedTask);
                     _loadTasks();
                     Navigator.of(context).pop();
-                    Get.snackbar(
-                      'Success',
-                      'Task updated successfully!',
-                      backgroundColor: Colors.green,
-                    );
+                    Get.snackbar('Success', 'Task updated successfully!',
+                        backgroundColor: Colors.green);
                   },
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(color: Colors.black),
-                  ),
+                  child: const Text('Save'),
                 ),
               ],
             );

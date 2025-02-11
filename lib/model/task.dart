@@ -34,6 +34,9 @@ class Task {
   @HiveField(9)
   double? radius;
 
+  @HiveField(10)
+  String address;
+
   Task({
     required this.title,
     required this.description,
@@ -44,7 +47,8 @@ class Task {
     required this.userId,
     this.latitude,
     this.longitude,
-    this.radius, required String locationAddress,
+    this.radius,
+    required this.address,
   });
 
   void save() {

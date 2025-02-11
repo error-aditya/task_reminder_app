@@ -6,7 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationPickerScreen extends StatefulWidget {
-  final Function(String) onLocationPicked; // Callback to send the location back
+  final Function(String, LatLng) onLocationPicked; // Callback to send the location back
 
   LocationPickerScreen({required this.onLocationPicked});
 
@@ -25,9 +25,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void initState() {
     super.initState();
     _initializeNotifications();
-    _getUserLocation();
     _startLocationListener();
     _requestLocationPermission();
+    // mapController;
   }
 
   Future<void> _requestLocationPermission() async {
@@ -36,34 +36,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (status.isGranted) {
       _getUserLocation();
     } else if (status.isDenied) {
-      _showPermissionDialog();
-    } else if (status.isPermanentlyDenied) {
       openAppSettings();
+      // } else if (status.isPermanentlyDenied) {
+      //   openAppSettings();
     }
-  }
-
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Location Permission Required!'),
-        content: const Text('This app needs location permission!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _startLocationListener() {
@@ -125,28 +101,70 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<void> _getUserLocation() async {
+  // Future<void> _checkLocationService() async {
+  //   bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  //   if (!serviceEnabled) {
+  //     _showEnableLocationDialog();
+  //   }
+  // }
+
+  void _showEnableLocationDialog() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print("Location service enabled!.");
+      await Geolocator.openLocationSettings();
+      await Future.delayed(const Duration(seconds: 2));
+
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+    }
+
+    // if (currentPosition == null) {
+    //   await _getUserLocation();
+    // }
+  }
+
+  Future<void> _getUserLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      // permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showEnableLocationDialog();
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      print("Location permission permanently denied.");
+      _showEnableLocationDialog();
       return;
     }
-    PermissionStatus permissionStatus =
-        await Permission.locationAlways.request();
 
-    if (permissionStatus.isGranted || permissionStatus.isLimited) {
+    if (permission == LocationPermission.whileInUse) {
+      PermissionStatus backgroundStatus =
+          await Permission.locationAlways.request();
+      if (!backgroundStatus.isGranted) {
+        print("Background location permission denied.");
+      }
+    }
+
+    try {
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (!mounted) return;
+
       setState(() {
         currentPosition = position;
       });
-    } else {
-      print("Location permission denied.");
+    } catch (e) {
+      print("Error getting location: $e");
     }
   }
 
   // Method to handle map taps
   void _onMapTapped(LatLng location) {
+    if (!mounted) return;
     setState(() {
       selectedLocation = location;
       selectedAddress = "Fetching address...";
@@ -160,9 +178,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   // Action when the user confirms the selected location
+
   void _confirmLocation() {
     if (selectedAddress != null && selectedLocation != null) {
-      widget.onLocationPicked(selectedAddress!);
+      widget.onLocationPicked(selectedAddress!, selectedLocation!);
       _sendNotification("Location Confirmed: $selectedAddress");
       Navigator.pop(context);
     } else {
@@ -193,6 +212,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       message,
       notificationDetails,
     );
+  }
+
+  @override
+  void dispose() {
+    mapController.dispose();
+
+    // Cancel the location listener to prevent memory leaks
+    Geolocator.getPositionStream().listen((_) {}).cancel();
+
+    super.dispose();
   }
 
   @override

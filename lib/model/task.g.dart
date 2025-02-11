@@ -17,23 +17,25 @@ class TaskAdapter extends TypeAdapter<Task> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Task(
-      title: fields[0] as String,
-      description: fields[1] as String,
-      priority: fields[2] as String,
-      status: fields[3] as bool,
-      date: fields[4] as DateTime,
-      alertDate: fields[5] as DateTime,
-      userId: fields[6] as String,
-      latitude: fields[7] as double?,
-      longitude: fields[8] as double?,
-      radius: fields[9] as double?, locationAddress: '',
+      title: fields[0] is String ? fields[0] as String : '', // ✅ Safe parsing
+      description: fields[1] is String ? fields[1] as String : '',
+      priority: fields[2] is String ? fields[2] as String : 'low',
+      status: fields[3] is bool ? fields[3] as bool : false, // ✅ Safe parsing
+      date: fields[4] is DateTime ? fields[4] as DateTime : DateTime.now(),
+      alertDate: fields[5] is DateTime ? fields[5] as DateTime : DateTime.now(),
+      userId: fields[6] is String ? fields[6] as String : '',
+      latitude: fields[7] is double? ? fields[7] as double? : null,
+      longitude: fields[8] is double? ? fields[8] as double? : null,
+      radius: fields[9] is double? ? fields[9] as double? : null,
+      address:
+          fields[10] is String ? fields[10] as String : '', // ✅ Safe parsing
     );
   }
 
   @override
   void write(BinaryWriter writer, Task obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -53,7 +55,9 @@ class TaskAdapter extends TypeAdapter<Task> {
       ..writeByte(8)
       ..write(obj.longitude)
       ..writeByte(9)
-      ..write(obj.radius);
+      ..write(obj.radius)
+      ..writeByte(10)
+      ..write(obj.address);
   }
 
   @override
