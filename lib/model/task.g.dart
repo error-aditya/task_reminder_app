@@ -17,18 +17,17 @@ class TaskAdapter extends TypeAdapter<Task> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Task(
-      title: fields[0] is String ? fields[0] as String : '', // ✅ Safe parsing
-      description: fields[1] is String ? fields[1] as String : '',
-      priority: fields[2] is String ? fields[2] as String : 'low',
-      status: fields[3] is bool ? fields[3] as bool : false, // ✅ Safe parsing
-      date: fields[4] is DateTime ? fields[4] as DateTime : DateTime.now(),
-      alertDate: fields[5] is DateTime ? fields[5] as DateTime : DateTime.now(),
-      userId: fields[6] is String ? fields[6] as String : '',
-      latitude: fields[7] is double? ? fields[7] as double? : null,
-      longitude: fields[8] is double? ? fields[8] as double? : null,
-      radius: fields[9] is double? ? fields[9] as double? : null,
-      address:
-          fields[10] is String ? fields[10] as String : '', // ✅ Safe parsing
+      title: fields[0] as String? ?? "", // Default empty string if null
+      description: fields[1] as String? ?? "",
+      priority: fields[2] as String? ?? "Low", // Default priority
+      status: fields[3] as bool? ?? false, // Default false if null
+      date: fields[4] as DateTime? ?? DateTime.now(),
+      alertDate: fields[5] as DateTime? ?? DateTime.now(),
+      userId: fields[6] is String ? fields[6] as String : "unknown",
+      latitude: fields[7] as double?, // Nullable
+      longitude: fields[8] as double?, // Nullable
+      radius: fields[9] as double?, // Nullable
+      address: fields[10] is String ? fields[10] as String : "",
     );
   }
 

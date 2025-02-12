@@ -36,6 +36,8 @@ class _ToDoPageState extends State<ToDoPage> {
   DateTime? startDate;
   DateTime? endDate;
   int selectedIndex = 0;
+  Set<int> notificationEnabledTasks =
+      {}; // Stores task indexes with notifications
 
   Widget _buildFilterButton(String filterType) {
     return Padding(
@@ -248,6 +250,7 @@ class _ToDoPageState extends State<ToDoPage> {
               pickedTime.hour,
               pickedTime.minute,
             );
+            notifyUser = true;
           });
         }
       }
@@ -309,30 +312,48 @@ class _ToDoPageState extends State<ToDoPage> {
                     ),
                     const SizedBox(height: 12),
                     ListTile(
-                      leading: const Icon(
-                        Icons.notifications_active_rounded,
-                        color: Colors.blue,
+                      leading: IconButton(
+                        icon: Icon(
+                          notifyUser
+                              ? Icons.notifications_active
+                              : Icons.notifications_off,
+                          color: notifyUser ? Colors.blue : Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            notifyUser = !notifyUser;
+                            if (!notifyUser) {
+                              selectedDateTime = DateTime
+                                  .now(); // Reset time if notifications are off
+                            }
+                          });
+                        },
                       ),
                       title: const Text("Alert Time:"),
                       subtitle: Text(DateFormat('yyyy-MM-dd HH:mm')
                           .format(selectedDateTime)),
                       trailing: IconButton(
                         icon: const Icon(Icons.calendar_today_rounded),
-                        onPressed: () => _pickDateTime(),
+                        onPressed: notifyUser
+                            ? () => _pickDateTime()
+                            : null, // Disable when notifyUser is false
+                        color: notifyUser
+                            ? Colors.blue
+                            : Colors
+                                .grey, // Change color to indicate disable state
                       ),
                     ),
                     const SizedBox(height: 10),
                     SwitchListTile(
-                      title: const Text('Notification For Task :'),
+                      title: const Text('Enable Notification for Task'),
                       activeColor: const Color(0xFF24C6DC),
                       value: notifyUser,
                       onChanged: (bool value) {
                         setState(() {
                           notifyUser = value;
-                          if (notifyUser == true) {
-                            const Icon(Icons.notifications_active_rounded);
-                          } else {
-                            const Icon(Icons.notifications_off_rounded);
+                          if (!notifyUser) {
+                            selectedDateTime =
+                                DateTime.now(); // Reset time when disabled
                           }
                         });
                       },
@@ -469,12 +490,16 @@ class _ToDoPageState extends State<ToDoPage> {
                     );
 
                     if (notifyUser) {
+                      DateTime now = DateTime.now();
+                      int uniqueId = now.millisecondsSinceEpoch.remainder(100000);
+
                       NotificationService().initNotification();
                       NotificationService().scheduleNotification(
+                        id: uniqueId,
                         title: _titleController.text,
                         body: _descriptionController.text,
                         scheduleDate: finalDateTime,
-                        AndroidScheduleMode: null,
+                        // AndroidScheduleMode: null,
                       );
                       NotificationService().requestExactAlarmPermission();
                     }
@@ -732,13 +757,37 @@ class _ToDoPageState extends State<ToDoPage> {
         ),
         centerTitle: true,
         actions: [
+          // IconButton(
+          //   icon: Icon(
+          //     notificationEnabledTasks.isNotEmpty
+          //         ? Icons.notifications_active
+          //         : Icons.notifications_off,
+          //     color: Colors.white,
+          //   ),
+          //   splashRadius: 22,
+          //   onPressed: () {
+          //     Get.snackbar(
+          //       "Task Notifications",
+          //       notificationEnabledTasks.isNotEmpty
+          //           ? "You have active task notifications."
+          //           : "No notifications are enabled.",
+          //       snackPosition: SnackPosition.BOTTOM,
+          //       backgroundColor: Colors.blueAccent,
+          //       colorText: Colors.white,
+          //       duration: const Duration(seconds: 3),
+          //     );
+          //   },
+          // ),
           IconButton(
             icon: const Icon(Icons.search, size: 26),
             splashRadius: 22,
             onPressed: () {
               showSearch(
                 context: context,
-                delegate: SearchScreen(tasks: _tasks),
+                delegate: SearchScreen(
+                  tasks: _tasks,
+                  onEditTask: _showEditTaskDialog,
+                ),
               );
             },
           ),
@@ -783,7 +832,8 @@ class _ToDoPageState extends State<ToDoPage> {
                       padding: const EdgeInsets.all(10.0),
                       child: GestureDetector(
                         onLongPress: () {
-                          _showDeleteConfirmationDialog(context, index); // Call _showDeleteConfirmationDialog with tas(index);
+                          _showDeleteConfirmationDialog(context,
+                              index); // Call _showDeleteConfirmationDialog with tas(index);
                         },
                         child: Card(
                           margin: const EdgeInsets.symmetric(
@@ -946,7 +996,7 @@ class _ToDoPageState extends State<ToDoPage> {
     _descriptionController.text = task.description;
     _priority = task.priority;
     DateTime? selectedDate = task.alertDate;
-    bool notify = true;
+    bool notify = selectedDate != null;
 
     final TextEditingController _locationController =
         TextEditingController(text: task.address ?? '');
@@ -1005,9 +1055,11 @@ class _ToDoPageState extends State<ToDoPage> {
                     ),
                     const SizedBox(height: 12),
                     ListTile(
-                      leading: const Icon(
-                        Icons.notifications_active_rounded,
-                        color: Colors.blue,
+                      leading: Icon(
+                        notify
+                            ? Icons.notifications_active
+                            : Icons.notifications_off,
+                        color: notify ? Colors.blue : Colors.grey,
                       ),
                       title: const Text("Alert Time:"),
                       subtitle: Text(
@@ -1040,6 +1092,8 @@ class _ToDoPageState extends State<ToDoPage> {
                                   pickedTime.hour,
                                   pickedTime.minute,
                                 );
+                                notify =
+                                    true; // Enable notification if date is picked
                               });
                             }
                           }
@@ -1047,12 +1101,15 @@ class _ToDoPageState extends State<ToDoPage> {
                       ),
                     ),
                     SwitchListTile(
-                      title: const Text('Notification For Task:'),
+                      title: const Text('Enable Notification for Task'),
                       activeColor: const Color(0xFF24C6DC),
                       value: notify,
                       onChanged: (bool value) {
                         setDialogState(() {
                           notify = value;
+                          if (!notify) {
+                            selectedDate = null; // Clear date if disabled
+                          }
                         });
                       },
                     ),
@@ -1093,31 +1150,41 @@ class _ToDoPageState extends State<ToDoPage> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (notify) {
+                    if (notify && selectedDate != null) {
                       NotificationService().initNotification();
                       NotificationService().scheduleNotification(
+                        id: DateTime.now().millisecondsSinceEpoch, // Unique ID,
                         title: _titleController.text,
                         body: _descriptionController.text,
                         scheduleDate: selectedDate!,
-                        AndroidScheduleMode: null,
+                        // AndroidScheduleMode: null,
                       );
                       NotificationService().requestExactAlarmPermission();
                     }
+
                     final updatedTask = Task(
                       title: _titleController.text,
                       description: _descriptionController.text,
                       priority: _priority,
                       status: task.status,
                       date: task.date,
-                      alertDate: selectedDate!,
+                      alertDate: selectedDate ??
+                          task.alertDate, // Save the updated date
                       userId: task.userId,
                       address: _locationController.text,
                     );
-                    await taskk!.putAt(_tasks.indexOf(task), updatedTask);
+
+                    await taskk!.putAt(index, updatedTask);
                     _loadTasks();
                     Navigator.of(context).pop();
-                    Get.snackbar('Success', 'Task updated successfully!',
-                        backgroundColor: Colors.green);
+                    Get.snackbar(
+                      'Success',
+                      'Task updated successfully!',
+                      backgroundColor: Colors.green,
+                      colorText: Colors.white,
+                      snackPosition: SnackPosition.BOTTOM,
+                      duration: const Duration(seconds: 3),
+                    );
                   },
                   child: const Text('Save'),
                 ),

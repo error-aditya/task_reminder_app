@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -11,38 +12,63 @@ class NotificationService {
 
   Future<void> initNotification() async {
     tz.initializeTimeZones();
-    AndroidInitializationSettings initializationSettingsAndroid =
-        const AndroidInitializationSettings('@drawable/godo');
 
-    var initializationSettingsIOS = const DarwinInitializationSettings(
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('ic_launcher');
+
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    var initializationSettings = InitializationSettings(
-        android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
+            android: initializationSettingsAndroid,
+            iOS: initializationSettingsIOS);
 
     await requestExactAlarmPermission();
-    await notificationsPlugin.initialize(initializationSettings,
-        onDidReceiveNotificationResponse:
-            (NotificationResponse notificationResponse) async {});
+
+    await notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse:
+          (NotificationResponse notificationResponse) async {
+        print("Notification tapped: ${notificationResponse.payload}");
+      },
+    );
+
+    final android = notificationsPlugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    android?.startForegroundService(
+      0,
+      notificationDetails() as String,
+      'Noted',
+    );
   }
 
   Future<void> requestExactAlarmPermission() async {
     if (Platform.isAndroid) {
       try {
-        final bool canScheduleExactAlarms = await notificationsPlugin
-                .resolvePlatformSpecificImplementation<
-                    AndroidFlutterLocalNotificationsPlugin>()
-                ?.requestPermission() ??
-            false;
+        if (await Permission.notification.isDenied) {
+          await Permission.notification.request();
+          await Permission.scheduleExactAlarm.request();
+        }
 
-        if (!canScheduleExactAlarms) {
-          await notificationsPlugin
-              .resolvePlatformSpecificImplementation<
-                  AndroidFlutterLocalNotificationsPlugin>()
-              ?.requestPermission();
+        final androidImplementation =
+            notificationsPlugin.resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+
+        if (androidImplementation != null) {
+          final bool canScheduleExactAlarms =
+              await androidImplementation.requestPermission() ?? false;
+          if (!canScheduleExactAlarms) {
+            if (await Permission.scheduleExactAlarm.isDenied) {
+              await Permission.scheduleExactAlarm.request();
+            }
+          } else {
+            print("Exact alarm permission granted.");
+          }
         }
       } on PlatformException catch (e) {
         print('Error requesting exact alarm permission: ${e.message}');
@@ -50,68 +76,83 @@ class NotificationService {
     }
   }
 
-  notificationDetails() {
-    return const NotificationDetails(
-        android: AndroidNotificationDetails('channelId', 'channelName',
-            importance: Importance.max, icon: '@drawable/godo'),
-        iOS: DarwinNotificationDetails());
+  NotificationDetails notificationDetails() {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'task_notifications',
+      'Task Notifications',
+      channelDescription: 'Task Reminder Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      icon: 'ic_launcher',
+      fullScreenIntent: true,
+      ongoing: false,
+      enableLights: true,
+    );
+
+    const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails();
+
+    return const NotificationDetails(android: androidDetails, iOS: iOSDetails);
   }
 
   // Show notification if enabled
   Future<void> showNotification({
     int id = 0,
-    String? title = 'GoDo',
-    String? body =
+    String title = 'GoDo',
+    String body =
         'Congratulations! You Have Set The Task.\nBest of Luck For Your Task.',
-    String? payLoad,
+    String? payload,
   }) async {
     bool notificationsEnabled = await getNotificationSetting();
     if (notificationsEnabled) {
-      return notificationsPlugin.show(
-          id, title, body, await notificationDetails());
+      await notificationsPlugin.show(
+        id,
+        title,
+        body,
+        notificationDetails(),
+        payload: payload,
+      );
     }
   }
 
   // Schedule notification if enabled
   Future<void> scheduleNotification({
+    required int id,
     required String title,
     required String body,
     required DateTime scheduleDate,
-    required dynamic AndroidScheduleMode,
   }) async {
     bool notificationsEnabled = await getNotificationSetting();
     if (notificationsEnabled) {
-      // Ensure the schedule date is in the future
       final tz.TZDateTime tzScheduleDate =
           tz.TZDateTime.from(scheduleDate, tz.local);
+
+      // ✅ Debugging log
+      print(
+          "⏰ Scheduling Notification at: ${tzScheduleDate.toLocal()} (${tz.local.name})");
+
       if (tzScheduleDate.isBefore(tz.TZDateTime.now(tz.local))) {
-        throw ArgumentError('scheduledDate must be a future date and time.');
+        print("🚨 ERROR: Scheduled time is in the past!");
+        return;
       }
 
       await requestExactAlarmPermission();
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails('task_notifications', 'Task Notifications',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-              enableVibration: true,
-              icon: '@drawable/godo');
-
-      const NotificationDetails platformChannelSpecifics = NotificationDetails(
-        android: androidPlatformChannelSpecifics,
-      );
 
       await notificationsPlugin.zonedSchedule(
-        0,
+        id,
         title,
         body,
         tzScheduleDate,
-        platformChannelSpecifics,
+        notificationDetails(),
         matchDateTimeComponents: DateTimeComponents.time,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.wallClockTime,
-        androidAllowWhileIdle: true,
+        androidAllowWhileIdle: true, // ✅ Ensure this is enabled
       );
+
+      print("✅ Notification scheduled successfully!");
     }
   }
 
@@ -120,7 +161,7 @@ class NotificationService {
     prefs.setBool('notifications_enabled', enable);
   }
 
-  // it will get the current notification setting
+  // Get current notification setting
   Future<bool> getNotificationSetting() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('notifications_enabled') ?? true;

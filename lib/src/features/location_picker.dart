@@ -96,7 +96,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void _initializeNotifications() {
     flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    var android = const AndroidInitializationSettings('godo');
+    var android = const AndroidInitializationSettings('ic_launcher');
     var initializationSettings = InitializationSettings(android: android);
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
@@ -203,7 +203,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Future<void> _sendNotification(String message) async {
     var androidDetails = const AndroidNotificationDetails(
         'location_channel_id', 'Location Reminders',
-        importance: Importance.high, priority: Priority.high, icon: 'godo');
+        importance: Importance.high, priority: Priority.high, icon: 'ic_launcher');
 
     var notificationDetails = NotificationDetails(android: androidDetails);
     await flutterLocalNotificationsPlugin.show(

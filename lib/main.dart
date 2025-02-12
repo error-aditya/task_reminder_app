@@ -100,12 +100,7 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(UserAdapter().typeId)) {
     Hive.registerAdapter(UserAdapter());
   }
-  // await Hive.deleteBoxFromDisk('taskk');
-
-  // Now open boxes safely
   await Hive.openBox<Task>('taskk');
-  // await taskBox.clear(); // Optional: Clears old tasks
-
   await Hive.openBox<User>('users');
 
   print('Hive box opened: ${Hive.isBoxOpen('taskk')}');
@@ -115,6 +110,11 @@ Future<void> main() async {
   NotificationService().initNotification();
   tz.initializeTimeZones();
 
+  await NotificationService().showNotification(
+    id: 1,
+    title: "🔔 Test Notification",
+    body: "This is a test to check if notifications work.",
+  );
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 

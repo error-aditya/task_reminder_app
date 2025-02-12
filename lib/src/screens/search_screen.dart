@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:newtodo/model/task.dart';
-
 class SearchScreen extends SearchDelegate {
   final List<Task> tasks;
+  final Function(int) onEditTask;
+
+  // void onEditTask(int index){}
 
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
@@ -17,7 +19,7 @@ class SearchScreen extends SearchDelegate {
     }
   }
 
-  SearchScreen({required this.tasks});
+  SearchScreen({required this.tasks, required this.onEditTask});
 
   @override
   List<Widget>? buildActions(BuildContext context) {
@@ -62,16 +64,18 @@ class SearchScreen extends SearchDelegate {
       itemCount: filteredTasks.length,
       itemBuilder: (context, index) {
         final task = filteredTasks[index];
-        return ListTile(
-          title: Text(task.title),
-          subtitle: Text(task.description),
-          trailing: Text(
-            'Priority: ${task.priority}',
-            style: TextStyle(color: _getPriorityColor(task.priority)),
+        return Card(
+          child: ListTile(
+            title: Text(task.title),
+            subtitle: Text(task.description),
+            trailing: Text(
+              'Priority: ${task.priority}',
+              style: TextStyle(color: _getPriorityColor(task.priority)),
+            ),
+            onTap: () {
+              onEditTask(tasks.indexOf(task));
+            },
           ),
-          onTap: () {
-            // Add any functionality for the task when tapped
-          },
         );
       },
     );
@@ -82,7 +86,6 @@ class SearchScreen extends SearchDelegate {
     if (query.isEmpty) {
       return const SizedBox.shrink(); // Blank screen before search
     }
-
     return buildResults(context);
   }
 }
