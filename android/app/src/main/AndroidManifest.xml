@@ -36,7 +36,6 @@
         <meta-data
             android:name="com.google.android.maps.Logging"
             android:value="false"/>
-
         <service
             android:name=".LocationService"
             android:foregroundServiceType="mediaProjection"
@@ -67,19 +66,22 @@
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
             android:exported="false"
-            android:enabled="true"
-            tools:replace="android:exported"/>
+            android:enabled="true"/>
 
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false"
             tools:replace="android:exported"/>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.NotificationBroadcastReceiver"
+            android:exported="false"/>
 
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.TimeZoneChangeReceiver"
-            android:exported="true"
+            android:exported="false"
             android:enabled="false">
             <intent-filter>
+                <action android:name="android.intent.action.TIME_SET"/>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
             </intent-filter>
         </receiver>
@@ -97,7 +99,8 @@
 
         <receiver
             android:name=".MyBootReceiver"
-            android:exported="true">
+            android:exported="false"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>

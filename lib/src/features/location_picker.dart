@@ -49,12 +49,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         distanceFilter: 10, // Check location every 10 meters
       ),
     ).listen((Position position) {
+      if(!mounted) return;
       setState(() {
         currentPosition = position;
       });
 
       // Check if user is within radius of selected location
-      if (selectedLocation != null) {
+      final locationSelected = selectedLocation;
+      if (locationSelected != null) {
         double distance = Geolocator.distanceBetween(
           position.latitude,
           position.longitude,
@@ -218,7 +220,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void dispose() {
     mapController.dispose();
 
-    // Cancel the location listener to prevent memory leaks
     Geolocator.getPositionStream().listen((_) {}).cancel();
 
     super.dispose();

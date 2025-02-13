@@ -109,12 +109,6 @@ Future<void> main() async {
   printAllUsers();
   NotificationService().initNotification();
   tz.initializeTimeZones();
-
-  await NotificationService().showNotification(
-    id: 1,
-    title: "🔔 Test Notification",
-    body: "This is a test to check if notifications work.",
-  );
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 

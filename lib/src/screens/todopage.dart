@@ -14,6 +14,7 @@ import 'package:newtodo/model/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ToDoPage extends StatefulWidget {
   const ToDoPage({super.key});
@@ -490,18 +491,18 @@ class _ToDoPageState extends State<ToDoPage> {
                     );
 
                     if (notifyUser) {
-                      DateTime now = DateTime.now();
-                      int uniqueId = now.millisecondsSinceEpoch.remainder(100000);
-
                       NotificationService().initNotification();
                       NotificationService().scheduleNotification(
-                        id: uniqueId,
+                        // id: uniqueId,
                         title: _titleController.text,
                         body: _descriptionController.text,
                         scheduleDate: finalDateTime,
+                        androidScheduleMode:
+                            AndroidScheduleMode.exactAllowWhileIdle,
                         // AndroidScheduleMode: null,
                       );
                       NotificationService().requestExactAlarmPermission();
+                      NotificationService().requestPermissions();
                     }
 
                     double? latitude =
@@ -1153,10 +1154,12 @@ class _ToDoPageState extends State<ToDoPage> {
                     if (notify && selectedDate != null) {
                       NotificationService().initNotification();
                       NotificationService().scheduleNotification(
-                        id: DateTime.now().millisecondsSinceEpoch, // Unique ID,
+                        // id: DateTime.now().millisecondsSinceEpoch, // Unique ID,
                         title: _titleController.text,
                         body: _descriptionController.text,
                         scheduleDate: selectedDate!,
+                        androidScheduleMode:
+                            AndroidScheduleMode.exactAllowWhileIdle,
                         // AndroidScheduleMode: null,
                       );
                       NotificationService().requestExactAlarmPermission();

@@ -25,3 +25,15 @@
 -> Removed the delete icon
 -> Add filter section to buildfiltertile
 -> Add lucide icons for filtertile buttons
+
+
+12-02-25
+-> Modify search screen functionality
+-> Add location icon to get details about the selected location
+-> Updated edit task UI
+-> launched release mode of apk
+-> Working on some issue in release mode
+
+
+13-02-25
+->
